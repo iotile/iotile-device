@@ -1,4 +1,4 @@
-import { guid, UnknownKeyError} from "iotile-common/build";
+import { guid, UnknownKeyError} from "iotile-common";
 
 export abstract class AbstractNotificationService {
     public abstract subscribe(event: string, callback: (string: string, any: any) => void): any;

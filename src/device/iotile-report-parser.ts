@@ -1,7 +1,7 @@
 import {RingBuffer} from "../common/ring-buffer";
 import * as Errors from "../common/error-space";
 import {RawReading, IndividualReport, SignedListReport} from "../common/iotile-reports";
-import {unpackArrayBuffer} from "iotile-common/build";
+import {unpackArrayBuffer} from "iotile-common";
 
 export enum ReceiveStatus {
     Idle = 0,

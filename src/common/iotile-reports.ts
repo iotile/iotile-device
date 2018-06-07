@@ -1,5 +1,6 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
-import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "iotile-common/build";
+///<reference path="../../typings/iotile-common.d.ts"/>
+import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "iotile-common";
 
 export class RawReading {
     private _raw_timestamp: number;

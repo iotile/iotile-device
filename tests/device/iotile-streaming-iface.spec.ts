@@ -1,7 +1,7 @@
 import { AdapterEvent, IOTileCharacteristic} from "../../src/common/iotile-types";
 import {IOTileStreamingInterface} from "../../src/device/iotile-iface-streaming";
-import {setupMockBLE} from "../helpers/mock-ble-setup";
-import {feedInPieces, createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../helpers/report-creation.util";
+import {setupMockBLE} from "../../src/iotile-device";
+import {feedInPieces, createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/iotile-device";
 
 describe('module: iotile.device, class: IOTileStreamingInterface', function () {
 	let iface: IOTileStreamingInterface;

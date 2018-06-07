@@ -1,6 +1,6 @@
 import * as Utilities from "iotile-common";
-import * as IOTileDeviceModule from "../../src";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../helpers/report-creation.util";
+import * as IOTileDeviceModule from "../../src/iotile-device";
+import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 
 describe('module: iotile.device, class: ReportParser', function () {
     let reportParser: IOTileDeviceModule.ReportParser;

@@ -1,4 +1,4 @@
-import {BasicControllerTile} from "../../src";
+import {BasicControllerTile} from "../../src/iotile-device";
 import { unpackArrayBuffer } from "iotile-common";
 
 function async_it(msg: string, func: () => Promise<void>) {

@@ -1,8 +1,6 @@
-import * as Errors from "iotile-common";
-import * as Utilities from "iotile-common";
 import {RingBuffer} from "../../src/common/ring-buffer";
-import * as IOTileDeviceModule from "../../src";
-import {createSequentialReport, createHashListReport, expectSequential} from "../helpers/report-creation.util";
+import * as IOTileDeviceModule from "../../src/iotile-device";
+import {createSequentialReport, createHashListReport, expectSequential} from "../../src/iotile-device";
 
 
 describe('module: iotile.common, class: SignedListReportMerger', function () {

@@ -1,6 +1,5 @@
 import {base64ToArrayBuffer} from "iotile-common";
-import {IOTileAdvertisementService, Platform} from "../../src";
-import {setupMockBLE} from "../helpers/mock-ble-setup";
+import {IOTileAdvertisementService, Platform, setupMockBLE} from "../../src/iotile-device";
 
 describe('module: iotile.device, IOTileAdvertisingService', function () {
     let IOTileAdvert = new IOTileAdvertisementService(960, window.device);

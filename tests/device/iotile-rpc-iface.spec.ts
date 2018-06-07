@@ -1,9 +1,9 @@
 import * as Errors from "iotile-common";
 import * as Utilities from "iotile-common";
-import * as IOTileDeviceModule from "../../src";
+import * as IOTileDeviceModule from "../../src/iotile-device";
 import * as IOTileTypes from "../../src/common/iotile-types";
 import {IOTileRPCInterface} from "../../src/device/iotile-iface-rpc";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../helpers/report-creation.util";
+import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src";
 
 describe('module: iotile.device, class: IOTileRPCInterface', function () {
   let iface: IOTileRPCInterface;

@@ -1,7 +1,7 @@
 import * as Errors from "../common/error-space";
 import * as IOTileTypes from "../common/iotile-types";
 import {IOTileDevice, RemoteBridgeState} from "./iotile-device";
-import {delay, ProgressNotifier} from "iotile-common/build";
+import {delay, ProgressNotifier} from "iotile-common";
 
 export class IOTileScriptInterface {
 	private channel: IOTileTypes.BLEChannel | undefined;

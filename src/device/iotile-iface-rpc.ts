@@ -1,4 +1,4 @@
-import {unpackArrayBuffer, packArrayBuffer} from "iotile-common/build";
+import {unpackArrayBuffer, packArrayBuffer} from "iotile-common";
 import * as Errors from "../common/error-space";
 import * as IOTileTypes from "../common/iotile-types";
 import {catService} from "../config";

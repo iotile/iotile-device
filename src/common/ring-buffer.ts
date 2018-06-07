@@ -1,4 +1,4 @@
-import {unpackArrayBuffer, copyArrayBuffer, expectedBufferSize, InsufficientSpaceError} from "iotile-common/build";
+import {unpackArrayBuffer, copyArrayBuffer, expectedBufferSize, InsufficientSpaceError} from "iotile-common";
 import {RingBufferEmptyError} from "./error-space";
 
 /**

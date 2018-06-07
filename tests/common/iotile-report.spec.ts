@@ -1,4 +1,4 @@
-import { IndividualReport, RawReading } from "../../src";
+import { IndividualReport, RawReading } from "../../src/iotile-device";
 import { unpackArrayBuffer, packArrayBuffer } from "iotile-common";
 
 describe('IndividualReport', function() {

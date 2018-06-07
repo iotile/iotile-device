@@ -1,4 +1,4 @@
-import {packArrayBuffer, base64ToArrayBuffer} from "iotile-common/build";
+import {packArrayBuffer, base64ToArrayBuffer} from "iotile-common";
 import {SignedReportSelectors} from "../common/iotile-reports";
 import CryptoJS = require("crypto-js");
 

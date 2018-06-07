@@ -10,7 +10,7 @@
 
 import {IOTileDevice, BLEConnectionInfo} from "./iotile-device";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
-import {delay} from "iotile-common/build";
+import {delay} from "iotile-common";
 import {UserRedirectionInfo, Platform} from "../common/iotile-types";
 import {catBLEOptimizer} from "../config";
 

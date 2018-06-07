@@ -1,6 +1,6 @@
 ///<reference path="cordova_ble.d.ts"/>
 
-import {MockFileTransfer, Entry} from "ng-iotile-app/mocks/mock-filesystem";
+import {} from "./iotile_utils";
 
 interface Raven {
 	setUserContext: ({}) => void;
@@ -14,10 +14,10 @@ declare global {
 		fabric: any;
 		cordova: any;
 		Raven: Raven;
-		resolveLocalFileSystemURL: (path: string, successCallback: (entry: Entry) => void, errorCallback: (any) => void) => void;
-		FileTransfer: typeof MockFileTransfer;
+		resolveLocalFileSystemURL: (path: string, successCallback: (entry: any) => void, errorCallback: (any: any) => void) => void;
+		FileTransfer: any;
 		StatusBar: any;
-		ionic: IonicStatic;
+		ionic: any;
 		plugins: any;
 	}
 }
