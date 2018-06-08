@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "lint": "tslint -t codeFrame 'src/**/*.ts' 'test/**/*.ts'",
-    "build": "tsc --module commonjs --outDir dist/lib && rollup -c rollup.config.ts && typedoc --name iotile-device --out dist/docs --target es6 --theme minimal --mode file src",
+    "build": "tsc --module commonjs --outDir dist/lib && rollup -c rollup.config.ts && typedoc --name iotile-device --out dist/docs --target es5 --theme minimal --mode file src",
     "start": "rollup -c rollup.config.ts -w",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -30,10 +30,10 @@
   },
   "jest": {
     "transform": {
-      ".(ts|tsx)": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+      ".(js|ts|tsx)": "<rootDir>/node_modules/ts-jest/preprocessor.js"
     },
     "transformIgnorePatterns": [
-      "<rootDir>/node_modules/(?!(iotile-common)/)"
+      "node_modules/(?!iotile-common)"
     ],
     "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(ts|tsx|js)$",
     "moduleFileExtensions": [
@@ -47,10 +47,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 90,
-        "functions": 95,
-        "lines": 95,
-        "statements": 95
+        "branches": 35,
+        "functions": 65,
+        "lines": 75,
+        "statements": 75
       }
     },
     "collectCoverage": true,
@@ -62,7 +62,7 @@
   "dependencies": {
     "@types/crypto-js": "^3.1.40",
     "crypto-js": "^3.1.9-1",
-    "iotile-common": "0.0.7",
+    "iotile-common": "0.0.8",
     "typescript-logging": "^0.6.2"
   },
   "devDependencies": {
