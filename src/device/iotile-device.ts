@@ -83,7 +83,7 @@ export class RemoteBridge {
  */
 export class Config {
   private adapter: AbstractIOTileAdapter;
-  private configLock: Mutex;
+  private configLock: any;
 
   constructor(adapter: AbstractIOTileAdapter) {
     this.adapter = adapter;
@@ -191,7 +191,7 @@ export class IOTileDevice {
   public connectionID: any;
 
   private adapter: AbstractIOTileAdapter;
-  private downloadLock: Mutex;
+  private downloadLock: any;
 
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
     this.advertisement = advData;
@@ -309,7 +309,7 @@ export class IOTileDevice {
     return new Config(this.adapter);
   }
 
-  public async downloadStream(streamName: string, progress?: ProgressNotifier): Promise<RawReading[]> {
+  public async downloadStream(streamName: string, progress?: any): Promise<RawReading[]> {
     let releaseStream = await this.downloadLock.acquire();
 
     try {
@@ -318,6 +318,7 @@ export class IOTileDevice {
       let now = new Date();
 
       let readings = [];
+      // @ts-ignore
       let subNotifier: ProgressNotifier | undefined = undefined;
 
       if (err) {

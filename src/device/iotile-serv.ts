@@ -16,6 +16,7 @@ import {AbstractNotificationService} from "../common/notification-service";
 import {catAdapter} from "../config";
 import { MockBleService } from "../mocks/mock-ble-serv";
 
+
 /**
  * @ngdoc overview
  * @name iotile.device
@@ -101,7 +102,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   //determine whether they should show a message or ask the user a question during 
   //a connection.
   public interactive: boolean;
-  public connectionMessages: OperationMessage[];
+  public connectionMessages: any[];
   
   constructor (Config: any, notificationService: AbstractNotificationService, platform: Platform) {
     super();
@@ -573,7 +574,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     return response;
   }
 
-  public async sendScript(script: ArrayBuffer, notifier: ProgressNotifier): Promise<void> {
+  public async sendScript(script: ArrayBuffer, notifier: any): Promise<void> {
     this.ensureConnected('sending script');
 
     await this.scriptInterface.send(script, notifier);

@@ -12,7 +12,7 @@ export class IOTileScriptInterface {
 		this.device = device;
 	}
 
-	public async send(script: ArrayBuffer, notifier: ProgressNotifier) {
+	public async send(script: ArrayBuffer, notifier: any) {
 		if (this.channel && this.device){
 			notifier.setTotal(Math.ceil(script.byteLength / 20) + 1);
 		

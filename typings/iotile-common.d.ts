@@ -1,1 +1,1 @@
-declare module 'iotile-common';
+declare module "iotile-common";

@@ -1,7 +1,7 @@
 import {RingBuffer} from "../common/ring-buffer";
 import * as Errors from "../common/error-space";
 import {RawReading, IndividualReport, SignedListReport} from "../common/iotile-reports";
-import {unpackArrayBuffer} from "iotile-common";
+import * as Common from "iotile-common";
 
 export enum ReceiveStatus {
     Idle = 0,
@@ -261,11 +261,9 @@ export class ReportParser {
         switch(reportType) {
             case 0:
             return this.tryParseIndividualReport();
-            break;
 
             case 1:
             return this.tryParseListReport();
-            break;
 
             default:
             throw new Errors.ReportParsingError('Unknown report format received: ' + reportType);
@@ -339,7 +337,7 @@ export class ReportParser {
 
         for (let i = 0; i < allReadingsData.byteLength; i += 16) {
             let readingData = allReadingsData.slice(i, i+16);
-            let reading = unpackArrayBuffer("HHLLL", readingData);
+            let reading = Common.unpackArrayBuffer("HHLLL", readingData);
             let stream = reading[0]; //reading[1] is reserved
             let readingID = reading[2];
             let readingTimestamp = reading[3];
