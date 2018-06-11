@@ -4,7 +4,8 @@
 
 import {ArgumentError} from "iotile-common";
 import * as Utilities from "iotile-common";
-import {IndividualReport, SignatureStatus, SignedListReport, SignedReportSelectors } from "../../iotile-device";
+import {IndividualReport, SignatureStatus, SignedListReport, SignedReportSelectors } from "../../common/iotile-reports";
+import {createHashListReport} from "../utilities";
 
 
 export function createIndividualReport (uuid: number, stream: string, value: number, sentTime: any, rawTime: any) {
@@ -78,48 +79,48 @@ export function createSequentialReport(uuid: number, stream: string, count: numb
     return createHashListReport(uuid, count+1, streamer, count + start, readings);
 }
 
-export function createHashListReport (uuid: number, reportID: number, streamer: any, sentTime: any, readings: any, selector?: number) {
-    var length = 20 + 24 + readings.length * 16;
-    var report = new ArrayBuffer(length);
-    var lowestID = 0xFFFFFFFF;
-    var highestID = 0;
+// export function createHashListReport (uuid: number, reportID: number, streamer: any, sentTime: any, readings: any, selector?: number) {
+//     var length = 20 + 24 + readings.length * 16;
+//     var report = new ArrayBuffer(length);
+//     var lowestID = 0xFFFFFFFF;
+//     var highestID = 0;
 
-    //If no explicit selector is given, choose one based on what streamer index was given
-    if (selector == null) {
-        if (streamer == 0) {
-            selector = SignedReportSelectors.UserOutputs;
-        } else if (streamer == 1) {
-            selector = SignedReportSelectors.SystemOutputs;
-        } else {
-            throw new ArgumentError("No selector specified and a streamer was given that was not 'well-known'");
-        }
-    }
+//     //If no explicit selector is given, choose one based on what streamer index was given
+//     if (selector == null) {
+//         if (streamer == 0) {
+//             selector = SignedReportSelectors.UserOutputs;
+//         } else if (streamer == 1) {
+//             selector = SignedReportSelectors.SystemOutputs;
+//         } else {
+//             throw new ArgumentError("No selector specified and a streamer was given that was not 'well-known'");
+//         }
+//     }
 
-    var header = Utilities.packArrayBuffer('BBHLLLBBH', 1, length & 0xFF, length >> 8, uuid, reportID, sentTime, 0, streamer, selector);
-    Utilities.copyArrayBuffer(report, header, 0, 0, header.byteLength);
+//     var header = Utilities.packArrayBuffer('BBHLLLBBH', 1, length & 0xFF, length >> 8, uuid, reportID, sentTime, 0, streamer, selector);
+//     Utilities.copyArrayBuffer(report, header, 0, 0, header.byteLength);
 
-    for (var i = 0; i < readings.length; ++i) {
-        var data = readings[i];
-        var reading = Utilities.packArrayBuffer('HHLLL', data.stream, 0, data.id, data.timestamp, data.value);
+//     for (var i = 0; i < readings.length; ++i) {
+//         var data = readings[i];
+//         var reading = Utilities.packArrayBuffer('HHLLL', data.stream, 0, data.id, data.timestamp, data.value);
         
-        Utilities.copyArrayBuffer(report, reading, 0, (20 + 16*i), reading.byteLength);
+//         Utilities.copyArrayBuffer(report, reading, 0, (20 + 16*i), reading.byteLength);
 
-        if (data.id < lowestID) {
-            lowestID = data.id;
-        }
+//         if (data.id < lowestID) {
+//             lowestID = data.id;
+//         }
 
-        if (data.id > highestID) {
-            highestID = data.id;
-        }
-    }
+//         if (data.id > highestID) {
+//             highestID = data.id;
+//         }
+//     }
 
-    let footer = Utilities.packArrayBuffer('LLLLLL', lowestID, highestID, 0, 0, 0, 0);
-    Utilities.copyArrayBuffer(report, footer, 0, 20 + (readings.length * 16), footer.byteLength);
+//     let footer = Utilities.packArrayBuffer('LLLLLL', lowestID, highestID, 0, 0, 0, 0);
+//     Utilities.copyArrayBuffer(report, footer, 0, 20 + (readings.length * 16), footer.byteLength);
 
-    //Calculate and paste in the correct signature
-    let calc = new Utilities.SHA256Calculator();
-    let sig = calc.calculateSignature(report.slice(0, report.byteLength - 16));
+//     //Calculate and paste in the correct signature
+//     let calc = new Utilities.SHA256Calculator();
+//     let sig = calc.calculateSignature(report.slice(0, report.byteLength - 16));
     
-    Utilities.copyArrayBuffer(report, sig, 0, report.byteLength - 16, 16);
-    return report;
-}
+//     Utilities.copyArrayBuffer(report, sig, 0, report.byteLength - 16, 16);
+//     return report;
+// }

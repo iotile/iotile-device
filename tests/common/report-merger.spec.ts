@@ -1,6 +1,5 @@
-import {RingBuffer} from "../../src/common/ring-buffer";
 import {ReportParser} from "../../src/device/iotile-report-parser";
-import {createSequentialReport, createHashListReport, expectSequential} from "../../src/mocks/helpers/report-creation.util";
+import {createSequentialReport} from "../../src/mocks/helpers/report-creation.util";
 import {SignedListReportMerger} from "../../src/common/report-merger";
 import {SignedListReport, SignatureStatus} from "../../src/common/iotile-reports";
 
