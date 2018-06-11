@@ -1,5 +1,6 @@
 import {RingBuffer} from "../../src/common/ring-buffer";
-import {StreamingTimeoutError, setupMockBLE} from "../../src/iotile-device";
+import {StreamingTimeoutError} from "../../src/common/error-space";
+import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
 import {IOTileCharacteristic} from "../../src/common/iotile-types";
 import {IOTileTracingInterface} from "../../src/device/iotile-iface-tracing";
 

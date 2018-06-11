@@ -1,15 +1,12 @@
 import * as Utilities from "iotile-common";
-import * as IOTileDeviceModule from "../../src/iotile-device";
+import {ReportParser, ReceiveStatus, ReportParserEvent, ReportProgressEvent} from "../../src/device/iotile-report-parser";
 import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 
 describe('module: iotile.device, class: ReportParser', function () {
-    let reportParser: IOTileDeviceModule.ReportParser;
+    let reportParser: ReportParser;
 
     beforeEach(function () {
-        angular.mock.module('iotile.device');
-        angular.mock.module('ngHtml2Js');
-
-        reportParser = new IOTileDeviceModule.ReportParser(16*1024);
+        reportParser = new ReportParser(16*1024);
     });
 
     it('should parse a single individual report', function () {
@@ -101,22 +98,22 @@ describe('module: iotile.device, class: ReportParser', function () {
          * Make sure that the in progress state is also updated appropriately 
          */
 
-        expect(reportParser.state).toBe(IOTileDeviceModule.ReceiveStatus.Idle);
+        expect(reportParser.state).toBe(ReceiveStatus.Idle);
         let parsed = reportParser.pushData(combined.slice(0, 50));
         expect(parsed.length).toBe(0);
-        expect(reportParser.state).toBe(IOTileDeviceModule.ReceiveStatus.InProgress);
+        expect(reportParser.state).toBe(ReceiveStatus.InProgress);
         expect(reportParser.inProgressReceived).toBe(50);
         expect(reportParser.inProgressTotal).toBe(report1.byteLength);
 
         parsed = reportParser.pushData(combined.slice(50, report1.byteLength+50));
         expect(parsed.length).toBe(1);
         expectSequential(parsed[0], 1, 'output 1', 100, 0);
-        expect(reportParser.state).toBe(IOTileDeviceModule.ReceiveStatus.InProgress);
+        expect(reportParser.state).toBe(ReceiveStatus.InProgress);
         expect(reportParser.inProgressReceived).toBe(50);
         expect(reportParser.inProgressTotal).toBe(report2.byteLength);
 
         parsed = reportParser.pushData(combined.slice(report1.byteLength+50, ));
-        expect(reportParser.state).toBe(IOTileDeviceModule.ReceiveStatus.Idle);
+        expect(reportParser.state).toBe(ReceiveStatus.Idle);
         expect(reportParser.inProgressReceived).toBe(0);
         expect(reportParser.inProgressTotal).toBe(0);
         expect(parsed.length).toBe(1);
@@ -139,15 +136,15 @@ describe('module: iotile.device, class: ReportParser', function () {
             if (i == 0) {
                 expect(event).not.toBeNull();
 
-                let event2 = event as IOTileDeviceModule.ReportParserEvent;
+                let event2 = event as ReportParserEvent;
                 expect(event2.name).toBe('ReportStartedEvent');
             } else if ((report1.byteLength - i) < 20) {
                 expect(event).not.toBeNull();
 
-                let event2 = event as IOTileDeviceModule.ReportParserEvent;
+                let event2 = event as ReportParserEvent;
                 expect(event2.name).toBe('ReportFinishedEvent');
             } else if (event !== null) {
-                let event2 = event as IOTileDeviceModule.ReportProgressEvent;
+                let event2 = event as ReportProgressEvent;
                 expect(event2.name).toBe('ReportProgressEvent');
                 expect(event2.finishedPercentage % 5).toBe(0); //Expect to get a progress update every 5% done
                 percentages.push(event2.finishedPercentage);
@@ -179,15 +176,15 @@ describe('module: iotile.device, class: ReportParser', function () {
             if (i == 0) {
                 expect(event).not.toBeNull();
 
-                let event2 = event as IOTileDeviceModule.ReportParserEvent;
+                let event2 = event as ReportParserEvent;
                 expect(event2.name).toBe('ReportStartedEvent');
             } else if ((report1.byteLength - i) < 20) {
                 expect(event).not.toBeNull();
 
-                let event2 = event as IOTileDeviceModule.ReportParserEvent;
+                let event2 = event as ReportParserEvent;
                 expect(event2.name).toBe('ReportFinishedEvent');
             } else if (event !== null) {
-                let event2 = event as IOTileDeviceModule.ReportProgressEvent;
+                let event2 = event as ReportProgressEvent;
                 expect(event2.name).toBe('ReportProgressEvent');
                 expect(event2.finishedPercentage % 5).toBe(0); //Expect to get a progress update every 5% done
                 percentages.push(event2.finishedPercentage);

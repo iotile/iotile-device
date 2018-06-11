@@ -1,8 +1,11 @@
 import {delay} from "iotile-common";
-import {IOTileAdapter, AdapterState, catAdapter} from "../../src/iotile-device";
+import {IOTileAdapter} from "../../src/device/iotile-serv";
+import {AdapterState} from "../../src/common/iotile-types";
+import {catAdapter} from "../../src/config";
 import  {Platform, AdapterEvent, IOTileCharacteristic} from "../../src/common/iotile-types";
-import {setupMockBLE, findByDeviceID} from "../../src/iotile-device";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/iotile-device";
+import {findByDeviceID} from "../../src/mocks/helpers/device-finding.util";
+import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
+import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 import { BasicNotificationService } from "../../src/common/notification-service";
 
 describe('module: iotile.device, service: IOTileDeviceService', function () {

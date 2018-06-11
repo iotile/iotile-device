@@ -3,7 +3,7 @@ import * as Utilities from "iotile-common";
 import * as IOTileDeviceModule from "../../src/iotile-device";
 import * as IOTileTypes from "../../src/common/iotile-types";
 import {IOTileRPCInterface} from "../../src/device/iotile-iface-rpc";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src";
+import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 
 describe('module: iotile.device, class: IOTileRPCInterface', function () {
   let iface: IOTileRPCInterface;
