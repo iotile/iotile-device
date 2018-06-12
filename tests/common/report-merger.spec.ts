@@ -25,7 +25,7 @@ describe('module: iotile.common, class: SignedListReportMerger', function () {
 
         for (let i = 0; i < 200; ++i) {
             expect(merged.readings[i].id == i);
-        }
+        };
 
         expect(merged.validity).toEqual(SignatureStatus.Valid);
         expect(merged.deviceID).toEqual(system.deviceID);

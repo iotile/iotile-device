@@ -29,17 +29,25 @@
     "report-coverage": "cat ./coverage/lcov.info | coveralls"
   },
   "jest": {
+    "globals": {
+      "ts-jest": {
+        "tsConfigFile": "tsconfig.jest.json"
+      }
+    },
     "transform": {
       ".(js|ts|tsx)": "<rootDir>/node_modules/ts-jest/preprocessor.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!iotile-common)"
+      "<rootDir>/node_modules/(?!iotile-common)"
     ],
-    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(ts|tsx|js)$",
+    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
     "moduleFileExtensions": [
       "ts",
       "tsx",
-      "js"
+      "js",
+      "jsx",
+      "json",
+      "node"
     ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",

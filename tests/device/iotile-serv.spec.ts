@@ -5,7 +5,7 @@ import {catAdapter} from "../../src/config";
 import  {Platform, AdapterEvent, IOTileCharacteristic} from "../../src/common/iotile-types";
 import {findByDeviceID} from "../../src/mocks/helpers/device-finding.util";
 import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
+import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 import { BasicNotificationService } from "../../src/common/notification-service";
 
 describe('module: iotile.device, service: IOTileDeviceService', function () {

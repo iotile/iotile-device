@@ -1,6 +1,7 @@
 import * as Utilities from "iotile-common";
 import {ReportParser, ReceiveStatus, ReportParserEvent, ReportProgressEvent} from "../../src/device/iotile-report-parser";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
+import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
+import {createHashListReport} from "../../src/mocks/utilities";
 
 describe('module: iotile.device, class: ReportParser', function () {
     let reportParser: ReportParser;
