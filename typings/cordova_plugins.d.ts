@@ -1,6 +1,6 @@
 ///<reference path="cordova_ble.d.ts"/>
 
-import {} from "./iotile_utils";
+export {};
 
 interface Raven {
 	setUserContext: ({}) => void;

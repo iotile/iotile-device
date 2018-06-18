@@ -16,8 +16,8 @@ describe('module: iotile.common, class: SignedListReportMerger', function () {
         let userBinary = createSequentialReport(1, 'output 1', 100, 0);
         let systemBinary = createSequentialReport(1, 'system output 10', 100, 1, 100);
 
-        let [user]: [SignedListReport] = <any>reportParser.pushData(userBinary);
-        let [system]: [SignedListReport] = <any>reportParser.pushData(systemBinary);
+        let [user]: [SignedListReport] = reportParser.pushData(userBinary);
+        let [system]: [SignedListReport] = reportParser.pushData(systemBinary);
 
         let merged = merger.mergeReports(user, system);
 
