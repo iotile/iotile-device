@@ -1,1 +1,0 @@
-declare module "iotile-common";
