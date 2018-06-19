@@ -1,8 +1,8 @@
 import {RingBuffer} from "../../src/common/ring-buffer";
-import {StreamingTimeoutError} from "../../src";
+import {StreamingTimeoutError} from "../../src/common/error-space";
+import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
 import {IOTileCharacteristic} from "../../src/common/iotile-types";
 import {IOTileTracingInterface} from "../../src/device/iotile-iface-tracing";
-import {setupMockBLE} from "../helpers/mock-ble-setup";
 
 describe('module: iotile.device, class: IOTileTracingInterface', function () {
 	let iface: IOTileTracingInterface;

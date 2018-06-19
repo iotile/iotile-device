@@ -1,0 +1,12 @@
+node_modules
+dist
+test
+src/**.js
+
+coverage
+*.log
+
+yarn.lock
+.rpt2_cache
+.vscode
+.github

@@ -107,7 +107,9 @@ export class MockBLEDevice {
     }
 
     if (charID === '2005') {
-      this.device.controller.disableStreaming();
+      if (this.device.controller){
+        this.device.controller.disableStreaming();
+      }
     }
 
     delete this.subscriptions[serviceID][charID];
@@ -126,13 +128,17 @@ export class MockBLEDevice {
     this.subscriptions[serviceID][charID].push({'success': success, 'failure': failure});
     //If they subscribed to the streaming characteristic, start streaming
     if (charID === '2005') {
-      this.device.controller.enableStreaming(success);
+      if (this.device.controller){
+        this.device.controller.enableStreaming(success);
+      }
     }
   }
 
   // eslint-disable-next-line no-unused-vars
   public disconnect (success: any) {
-    this.device.controller.disableStreaming();
+    if (this.device.controller){
+      this.device.controller.disableStreaming();
+    }
 
     //Remove all subscriptions
     this.subscriptions = {};

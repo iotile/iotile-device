@@ -1,9 +1,9 @@
 import * as Errors from "iotile-common";
 import * as Utilities from "iotile-common";
-import * as IOTileDeviceModule from "../../src";
 import * as IOTileTypes from "../../src/common/iotile-types";
-import {IOTileRPCInterface} from "../../src/device/iotile-iface-rpc";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../helpers/report-creation.util";
+import {IOTileRPCInterface, RPCError} from "../../src/device/iotile-iface-rpc";
+import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
+import {createHashListReport} from "../../src/mocks/utilities";
 
 describe('module: iotile.device, class: IOTileRPCInterface', function () {
   let iface: IOTileRPCInterface;
@@ -146,9 +146,9 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
 
         done.fail('No error thrown and timeout error expected')
       } catch (err) {
-        expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.UnexpectedRPCTimeout);
+        expect(err.errorCode).toBe(RPCError.UnexpectedRPCTimeout);
         expect(iface.stoppedFromErrors).toBe(true);
-        expect(iface.lastError).toBe(IOTileDeviceModule.RPCError.UnexpectedRPCTimeout);
+        expect(iface.lastError).toBe(RPCError.UnexpectedRPCTimeout);
         done();
       } 
   })
@@ -162,9 +162,9 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
     promise.then(function (value) {
         done.fail('No error thrown and timeout error expected');
     }).catch (function (err) {
-        expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.ResponseReceivedAtInvalidTime);
+        expect(err.errorCode).toBe(RPCError.ResponseReceivedAtInvalidTime);
         expect(iface.stoppedFromErrors).toBe(true);
-        expect(iface.lastError).toBe(IOTileDeviceModule.RPCError.ResponseReceivedAtInvalidTime);
+        expect(iface.lastError).toBe(RPCError.ResponseReceivedAtInvalidTime);
         done();
       });
   })
@@ -179,9 +179,9 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
     promise.then(function (value) {
         done.fail('No error thrown and payload error expected');
     }).catch (function (err) {
-        expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.IncorrectReceivedLength);
+        expect(err.errorCode).toBe(RPCError.IncorrectReceivedLength);
         expect(iface.stoppedFromErrors).toBe(true);
-        expect(iface.lastError).toBe(IOTileDeviceModule.RPCError.IncorrectReceivedLength);
+        expect(iface.lastError).toBe(RPCError.IncorrectReceivedLength);
         done();
       });
   })
@@ -195,9 +195,9 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
     promise.then(function (value) {
         done.fail('No error thrown and payload error expected');
     }).catch (function (err) {
-        expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.UnexpectedRPCTimeout);
+        expect(err.errorCode).toBe(RPCError.UnexpectedRPCTimeout);
         expect(iface.stoppedFromErrors).toBe(true);
-        expect(iface.lastError).toBe(IOTileDeviceModule.RPCError.UnexpectedRPCTimeout);
+        expect(iface.lastError).toBe(RPCError.UnexpectedRPCTimeout);
         done();
       });
   })
@@ -214,14 +214,14 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
       }
 
       expect(iface.stoppedFromErrors).toBe(true);
-      expect(iface.lastError).toBe(IOTileDeviceModule.RPCError.UnexpectedRPCTimeout);
+      expect(iface.lastError).toBe(RPCError.UnexpectedRPCTimeout);
 
       try {
         await iface.rpc(8, 0x1000, new ArrayBuffer(0), .1);
 
         done.fail('No error thrown and queue should be stopped from errors');
       } catch (err) {
-        expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.StoppedFromPreviousErrors);
+        expect(err.errorCode).toBe(RPCError.StoppedFromPreviousErrors);
         done();
       }
   })
@@ -233,7 +233,7 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
       await iface.rpc(8, 0x1000, new ArrayBuffer(0));
 
       expect(iface.stoppedFromErrors).toBe(false);
-      expect(iface.lastError).toBe(IOTileDeviceModule.RPCError.OK);
+      expect(iface.lastError).toBe(RPCError.OK);
       done();
     } catch (err) {
       done.fail(err.message);
@@ -274,7 +274,7 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
       
       done.fail();
     } catch (err) {
-      expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.IncorrectReceivedLength);
+      expect(err.errorCode).toBe(RPCError.IncorrectReceivedLength);
     }
 
     try {
@@ -282,7 +282,7 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
       
       done.fail();
     } catch (err) {
-      expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.StoppedFromPreviousErrors);
+      expect(err.errorCode).toBe(RPCError.StoppedFromPreviousErrors);
     }
 
     try {
@@ -290,7 +290,7 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
       
       done.fail();
     } catch (err) {
-      expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.StoppedFromPreviousErrors);
+      expect(err.errorCode).toBe(RPCError.StoppedFromPreviousErrors);
     }
 
     try {
@@ -298,7 +298,7 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
       
       done.fail();
     } catch (err) {
-      expect(err.errorCode).toBe(IOTileDeviceModule.RPCError.StoppedFromPreviousErrors);
+      expect(err.errorCode).toBe(RPCError.StoppedFromPreviousErrors);
     }
 
     done();

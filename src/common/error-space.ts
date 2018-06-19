@@ -27,8 +27,7 @@
  *   If those objects need to be included in an exception, they should be passed as parameters
  *   to the appropriate Error subclass.
  */
-
-import {BaseError} from "iotile-common/build";
+import {BaseError} from "iotile-common";
 import {UserRedirectionInfo, AdapterState} from "./iotile-types";
 
 /**
@@ -60,6 +59,7 @@ export class RPCError extends BaseError {
 
     constructor(address: number, rpcID: number, errorCode: number) {
         let message = 'Error sending RPC to Tile ' + address + ' with ID ' + rpcID + ', code was ' + errorCode;
+        // @ts-ignore
         super('RPCError', message);
 
         this.address = address;
@@ -70,6 +70,7 @@ export class RPCError extends BaseError {
 
 export class StreamingError extends BaseError {
     constructor(name: string, message: string) {
+        // @ts-ignore
         super(name, message);
     }
 }
@@ -125,6 +126,7 @@ export class RingBufferEmptyError extends StreamingError {
 
 export class BluetoothError extends BaseError {
     constructor(name: string, message: string) {
+        // @ts-ignore
         super(name, message);
     }
 }

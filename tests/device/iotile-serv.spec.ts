@@ -1,9 +1,11 @@
 import {delay} from "iotile-common";
-import {IOTileAdapter, AdapterState, catAdapter} from "../../src";
+import {IOTileAdapter} from "../../src/device/iotile-serv";
+import {AdapterState} from "../../src/common/iotile-types";
+import {catAdapter, catBLEOptimizer, catService} from "../../src/config";
 import  {Platform, AdapterEvent, IOTileCharacteristic} from "../../src/common/iotile-types";
-import {setupMockBLE} from "../helpers/mock-ble-setup";
-import {findByDeviceID} from "../helpers/device-finding.util";
-import {createIndividualReport, expectIndividual, createSequentialReport, createHashListReport, createReading, expectSequential} from "../helpers/report-creation.util";
+import {findByDeviceID} from "../../src/mocks/helpers/device-finding.util";
+import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
+import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 import { BasicNotificationService } from "../../src/common/notification-service";
 
 describe('module: iotile.device, service: IOTileDeviceService', function () {
@@ -25,13 +27,18 @@ describe('module: iotile.device, service: IOTileDeviceService', function () {
 
     setupMockBLE(config);
 
+    spyOn(catService, 'error').and.returnValue('');
     spyOn(catAdapter, 'info').and.returnValue('');
     spyOn(catAdapter, 'error').and.returnValue('');
     spyOn(catAdapter, 'debug').and.returnValue('');
+    spyOn(catBLEOptimizer, 'info').and.returnValue('');
+    spyOn(catBLEOptimizer, 'error').and.returnValue('');
+    spyOn(catBLEOptimizer, 'warn').and.returnValue('');
 
     let notification = new BasicNotificationService();
 
     Adapter = new IOTileAdapter(config, notification, Platform.Android);
+    spyOn(Adapter.rpcInterface, 'rpc').and.returnValue([]);
   });
 
   it('should scan for a fixed period of time', async function (done) {

@@ -1,6 +1,6 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
 import {InvalidAdvertisingData} from "../common/error-space";
-import {deviceIDToSlug} from "iotile-common/build";
+import {deviceIDToSlug} from "iotile-common";
 import {Platform} from "../common/iotile-types";
 
 export interface IOTileAdvertisementFlags {

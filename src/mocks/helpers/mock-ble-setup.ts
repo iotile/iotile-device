@@ -1,4 +1,4 @@
-export function setupMockBLE(config: {}) {
+export function setupMockBLE(config: any) {
     config['BLE'] = {
         "MOCK_BLE": true,
         "MOCK_BLE_DEVICE": "Android",

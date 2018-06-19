@@ -1,6 +1,6 @@
-import {packArrayBuffer, base64ToArrayBuffer} from "iotile-common/build";
+import {packArrayBuffer, base64ToArrayBuffer} from "iotile-common";
 import {SignedReportSelectors} from "../common/iotile-reports";
-import CryptoJS = require("crypto-js");
+import * as CryptoJS from "crypto-js";
 
 export function buildIndividualReport(uuid: number, streamID: number, value: number) {
     var reportData = new ArrayBuffer(20);

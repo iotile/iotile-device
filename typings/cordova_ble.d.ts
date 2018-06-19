@@ -26,15 +26,15 @@ declare class CordovaBLECentral {
 	connect(bleDeviceID: any, resolve: (peripheral: BLEPeripheral) => void, reject: (reason: string) => void): Promise<void>;
 	disconnect(bleDeviceID: any, resolve: () => void, reject: (reason: string) => void): Promise<void>;
 
-	read(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, success: (ArrayBuffer) => void, failure: (string) => void);
-	write(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, value: ArrayBuffer, success: () => void, failure: (string) => void);
-	writeWithoutResponse(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, value: ArrayBuffer, success: () => void, failure: (string) => void);	
+	read(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, success: (ArrayBuffer: ArrayBuffer) => void, failure: (string: string) => void): any;
+	write(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, value: ArrayBuffer, success: () => void, failure: (string: string) => void): any;
+	writeWithoutResponse(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, value: ArrayBuffer, success: () => void, failure: (string: string) => void): any;	
 	
-	startNotification(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, success: (ArrayBuffer) => void, failure: (string) => void);
-	stopNotification(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, success: (ArrayBuffer) => void, failure: (string) => void);
+	startNotification(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, success: (ArrayBuffer: ArrayBuffer) => void, failure: (string: string) => void): any;
+	stopNotification(bleDeviceID: any, serviceUUID: any, characteristicUUID: any, success: (ArrayBuffer: ArrayBuffer) => void, failure: (string: string) => void): any;
 	
-	isEnabled(success: (any) => void, failure: (any) => void);
-	isConnected(bleDeviceID: any, success: (any) => void, failure: (any) => void);
+	isEnabled(success: (any: any) => void, failure: (any: any) => void): any;
+	isConnected(bleDeviceID: any, success: (any: any) => void, failure: (any: any) => void): any;
 	//Only provided by mock BLE implementation for testing
-	force_disconnect();
+	force_disconnect(): any;
 }

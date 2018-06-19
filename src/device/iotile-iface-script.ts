@@ -1,7 +1,7 @@
 import * as Errors from "../common/error-space";
 import * as IOTileTypes from "../common/iotile-types";
 import {IOTileDevice, RemoteBridgeState} from "./iotile-device";
-import {delay, ProgressNotifier} from "iotile-common/build";
+import {delay, ProgressNotifier} from "iotile-common";
 
 export class IOTileScriptInterface {
 	private channel: IOTileTypes.BLEChannel | undefined;
@@ -12,7 +12,7 @@ export class IOTileScriptInterface {
 		this.device = device;
 	}
 
-	public async send(script: ArrayBuffer, notifier: ProgressNotifier) {
+	public async send(script: ArrayBuffer, notifier: any) {
 		if (this.channel && this.device){
 			notifier.setTotal(Math.ceil(script.byteLength / 20) + 1);
 		

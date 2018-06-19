@@ -1,5 +1,5 @@
 import {tileRPC, VirtualTile, RPCResponse, VersionInfo, packError} from "../virtual-device";
-import { ArgumentError } from "iotile-common/build";
+import { ArgumentError } from "iotile-common";
 import { buildIndividualReport } from "../utilities";
 
 export interface StreamValue {

@@ -7,14 +7,15 @@ import {IOTileRPCInterface} from "./iotile-iface-rpc";
 import {IOTileScriptInterface} from "./iotile-iface-script";
 import {IOTileStreamingInterface} from "./iotile-iface-streaming";
 import {IOTileTracingInterface} from "./iotile-iface-tracing";
-import {ArgumentError, UnknownKeyError} from "iotile-common/build";
-import {packArrayBuffer, unpackArrayBuffer, delay, OperationMessage, ProgressNotifier} from "iotile-common/build";
+import {ArgumentError, UnknownKeyError} from "iotile-common";
+import {packArrayBuffer, unpackArrayBuffer, delay, OperationMessage, ProgressNotifier} from "iotile-common";
 import {BLEConnectionOptimizer} from "./iotile-ble-optimizer";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
 import {IOTileDevice} from "./iotile-device";
 import {AbstractNotificationService} from "../common/notification-service";
 import {catAdapter} from "../config";
 import { MockBleService } from "../mocks/mock-ble-serv";
+
 
 /**
  * @ngdoc overview
@@ -83,7 +84,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   public lastScanResults: IOTileAdvertisement[];
   public mockBLEService: any;
 
-  private rpcInterface: IOTileRPCInterface;
+  public rpcInterface: IOTileRPCInterface;
   private streamingInterface: IOTileStreamingInterface;
   private scriptInterface: IOTileScriptInterface;
   private tracingInterface: IOTileTracingInterface;
@@ -101,7 +102,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   //determine whether they should show a message or ask the user a question during 
   //a connection.
   public interactive: boolean;
-  public connectionMessages: OperationMessage[];
+  public connectionMessages: any[];
   
   constructor (Config: any, notificationService: AbstractNotificationService, platform: Platform) {
     super();
@@ -573,7 +574,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     return response;
   }
 
-  public async sendScript(script: ArrayBuffer, notifier: ProgressNotifier): Promise<void> {
+  public async sendScript(script: ArrayBuffer, notifier: any): Promise<void> {
     this.ensureConnected('sending script');
 
     await this.scriptInterface.send(script, notifier);
@@ -702,7 +703,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
       catAdapter.error(`Failed to execute rpc ${rpcID} on tile ${address}`, Error);
       throw new Errors.RPCError(address, rpcID, errorCode);
     }
-
+    
     return resp;
   }
 
