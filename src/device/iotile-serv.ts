@@ -84,7 +84,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   public lastScanResults: IOTileAdvertisement[];
   public mockBLEService: any;
 
-  private rpcInterface: IOTileRPCInterface;
+  public rpcInterface: IOTileRPCInterface;
   private streamingInterface: IOTileStreamingInterface;
   private scriptInterface: IOTileScriptInterface;
   private tracingInterface: IOTileTracingInterface;
@@ -703,7 +703,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
       catAdapter.error(`Failed to execute rpc ${rpcID} on tile ${address}`, Error);
       throw new Errors.RPCError(address, rpcID, errorCode);
     }
-
+    
     return resp;
   }
 
