@@ -365,7 +365,7 @@ export class IOTileDevice {
     }
   }
 
-  public async updateBLEParams(minIntervalMS: number, maxIntervalMS: number, timeoutMS: number) {
+  public async updateBLEParams(minIntervalMS: number, maxIntervalMS: number, timeoutMS: number): Promise<number> {
     let minInterval = Math.floor(minIntervalMS / 1.25);
     let maxInterval = Math.floor(maxIntervalMS / 1.25);
     let timeout = Math.floor(timeoutMS / 10);
@@ -380,7 +380,7 @@ export class IOTileDevice {
 
     // NB, the last parameter is the slave latency that we do not support changing from 0.  There is never
     // a good reason for the app to request a change to the slave latency.
-    let [err] = await this.adapter.errorHandlingRPC(8, 0x8001, "HHHH", "L", [minInterval, maxInterval, timeout, 0], 1.0);
+    let [err]: [number] = await this.adapter.typedRPC(8, 0x8001, "HHHH", "L", [minInterval, maxInterval, timeout, 0], 1.0);
     return err;
   }
 }
