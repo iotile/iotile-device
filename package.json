@@ -1,5 +1,5 @@
 {
-  "name": "iotile-device",
+  "name": "@iotile/iotile-device",
   "version": "0.0.3",
   "description": "A typescript library for interfacing with IOTile BLE devices",
   "main": "dist/iotile-device.umd.js",
