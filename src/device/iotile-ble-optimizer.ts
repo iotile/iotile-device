@@ -142,13 +142,18 @@ export class BLEConnectionOptimizer {
                 await delay(300);  //Make sure we have time for the update take effect
 
                 // If the BLE stack is too busy, back off and try again
-                if (updateErr && updateErr.errorCode == 17){
-                    catBLEOptimizer.error(`BLE stack busy, trying step again. Interval [${step.update.minInterval}, ${step.update.maxInterval}], attempt: ${this.attempt}`, Error);
+                if (updateErr == 17) {
+                    catBLEOptimizer.warn(`BLE stack busy, trying step again. Interval [${step.update.minInterval}, ${step.update.maxInterval}], attempt: ${this.attempt}`);
                     await delay(300);
-                    await device.updateBLEParams(step.update.minInterval, step.update.maxInterval, step.update.timeout);
+                    let updateErr = await device.updateBLEParams(step.update.minInterval, step.update.maxInterval, step.update.timeout);
                     this.attempt += 1;
+
+                    if (updateErr !== 0) {
+                        catBLEOptimizer.error(`Could not update ble connection after backing off 300 ms due to a busy BLE stack: error = ${updateErr}`, null);
+                        return null;
+                    }
                 } else if (updateErr) {
-                    catBLEOptimizer.error("Unexpected error optimizing BLE connection", updateErr);
+                    catBLEOptimizer.error(`Unexpected error optimizing BLE connection: error code = ${updateErr}`, null);
                     return null;
                 }
 
@@ -160,7 +165,7 @@ export class BLEConnectionOptimizer {
                 }
             }
         } catch (err) {
-            catBLEOptimizer.error(`Unexpected error optimizing BLE connection ${err}`, Error);
+            catBLEOptimizer.error(`Unexpected error optimizing BLE connection ${err}`, err);
             return null;
         }
 
