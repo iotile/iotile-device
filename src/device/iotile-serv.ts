@@ -188,7 +188,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     // configure the device to increase the maximum report size
     try {
       await adapter.errorHandlingRPC(8, 0x0A05, "LB", "L", [1024*1024, 0], 5.0);
-
+      
       // confirm report size
       let [maxPacket, _comp1, _comp2] = await adapter.typedRPC(8, 0x0A06, "", "LBB", [], 5.0);
       if (maxPacket != 1024*1024){
@@ -197,7 +197,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
         catAdapter.info("Large device report size successfully configured");
       }
     } catch (err){
-      catAdapter.debug("Couldn't configure sending larger reports on this device: ", err);
+      catAdapter.info("Couldn't configure sending larger reports on this device: ", err);
     }
     
     return null;
@@ -485,12 +485,14 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     //Run all preconnection hooks here to make sure that we should
     //connect to this device.  Do this before notifying ConnectionStarted
     //so that users can capture that event to show a loading modal.
+    catAdapter.info("Running preconnectionHooks");
     for (let i = 0; i < this.preconnectionHooks.length; ++i) {
       let hook = this.preconnectionHooks[i];
 
       let redirect = await hook(advert, this);
 
       if (redirect) {
+        catAdapter.error(`Error running preconnection hooks`, new Error(redirect.reason));
         throw new Errors.ConnectionCancelledError(redirect);
       }
     }
@@ -512,27 +514,33 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
           await this.openInterface(Interface.Script);
 
           //Now run all of the connection hooks that are registered for this device
+          catAdapter.info(`Running ${this.connectionHooks.length} connectionHooks`);
           for (let i = 0; i < this.connectionHooks.length; ++i) {
             let hook = this.connectionHooks[i];
 
             let redirect = await hook(this.connectedDevice, this);
             if (redirect) {
+              catAdapter.error(`Error running connection hooks`, new Error(redirect.reason));
               throw new Errors.ConnectionCancelledError(redirect);
             }
           }
+          catAdapter.info('Finished connectionHooks');
 
           //Users can pass a one-time hook that will be called as if it were registered
           //with registerConnectionHook.  This is useful for controllers that need to do
           //predevice setup before allowing realtime and historical streaming.
           if (prestreamingHook != null) {
+            catAdapter.info("Running prestreamingHooks");
             await prestreamingHook(this.connectedDevice, this);
           }
 
           if (openStreaming) {
+            catAdapter.info("Running openStreaming interface");
             await this.openInterface(Interface.Streaming);
           }
       } catch (err) {
         await this.disconnect();
+        catAdapter.error(`Connection Cancelled`, new Error(JSON.stringify(err)));
         throw err;
       }
     } finally {
