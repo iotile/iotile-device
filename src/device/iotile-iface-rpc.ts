@@ -274,6 +274,7 @@ export class IOTileRPCInterface {
       }
 
     } catch (err) {
+      catService.error(JSON.stringify(err), new Error(JSON.stringify(RPCError.BluetoothErrorWritingRPC)));
       this.fatalRPCError(RPCError.BluetoothErrorWritingRPC);
     }
     }

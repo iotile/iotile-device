@@ -118,6 +118,7 @@ export class BLEConnectionOptimizer {
             info = await device.queryBLEConnectionInfo();
         } catch (err) {
             catBLEOptimizer.info("Not optimizing BLE connection on old device that does not support the required RPCs.");
+            catBLEOptimizer.info(JSON.stringify(err));
             return null;
         }
 
@@ -136,7 +137,7 @@ export class BLEConnectionOptimizer {
                     await delay(step.preupdateWait);
                 }
 
-                catBLEOptimizer.debug(`Attempting to set interval [${step.update.minInterval}, ${step.update.maxInterval}], attempt: ${this.attempt}`);
+                catBLEOptimizer.info(`Attempting to set interval [${step.update.minInterval}, ${step.update.maxInterval}], attempt: ${this.attempt}`);
                 let updateErr = await device.updateBLEParams(step.update.minInterval, step.update.maxInterval, step.update.timeout);
                 this.attempt += 1;
                 await delay(300);  //Make sure we have time for the update take effect
