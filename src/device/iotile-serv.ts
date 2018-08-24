@@ -83,6 +83,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   
   public lastScanResults: IOTileAdvertisement[];
   public mockBLEService: any;
+  private config: any;
 
   public rpcInterface: IOTileRPCInterface;
   private streamingInterface: IOTileStreamingInterface;
@@ -108,7 +109,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     super();
     
     this.adParser = new IOTileAdvertisementService(Config.BLE.ARCH_BLE_COMPANY_ID, platform);
-
+    this.config = Config;
     this.notification = notificationService;
     this.state = AdapterState.Idle;
     this.connectionHooks = [];
@@ -513,8 +514,10 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
           //Always open the script interface in case we need to do a firmware update
           await this.openInterface(Interface.Script);
 
-          // Make sure that the device has established a connection before running rpcs
-          await delay(500);
+          if (this.config.RPCTimeout){
+            await delay(this.config.RPCTimeout);
+          }
+
           //Now run all of the connection hooks that are registered for this device
           catAdapter.info(`Running ${this.connectionHooks.length} connectionHooks`);
           for (let i = 0; i < this.connectionHooks.length; ++i) {
