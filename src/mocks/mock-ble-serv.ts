@@ -13,7 +13,6 @@ export class MockBleService {
     this.devices = [];
     this.Config = Config; 
 
-    catMockBLE.info(Config.BLE.MOCK_BLE_DEVICES);
     for (var devID in Config.BLE.MOCK_BLE_DEVICES) {
       let knownDevices: {[key: string]: any} = {
         'nfc300': Devices.NFC300,
@@ -27,7 +26,7 @@ export class MockBleService {
       this.devices.push(device);
     }
 
-    catMockBLE.info('Created ' + this.devices.length + ' fake devices');
+    catMockBLE.debug('Created ' + this.devices.length + ' fake devices');
 
     this.scanInfo = {'inProgress': false, 'discoveryTimer': null};
     this.connectionInfo = {'inProgress': false, 'connected': false, 'device': null};
