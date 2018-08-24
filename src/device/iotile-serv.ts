@@ -197,7 +197,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
         catAdapter.info("Large device report size successfully configured");
       }
     } catch (err){
-      catAdapter.info("Couldn't configure sending larger reports on this device: ", err);
+      catAdapter.info("Couldn't configure sending larger reports on this device: "  +  JSON.stringify(err));
     }
     
     return null;
@@ -513,6 +513,8 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
           //Always open the script interface in case we need to do a firmware update
           await this.openInterface(Interface.Script);
 
+          // Make sure that the device has established a connection before running rpcs
+          await delay(500);
           //Now run all of the connection hooks that are registered for this device
           catAdapter.info(`Running ${this.connectionHooks.length} connectionHooks`);
           for (let i = 0; i < this.connectionHooks.length; ++i) {
