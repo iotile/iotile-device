@@ -2,6 +2,7 @@
 import {InvalidAdvertisingData} from "../common/error-space";
 import {deviceIDToSlug} from "iotile-common";
 import {Platform} from "../common/iotile-types";
+import { catAdapter } from "../config";
 
 export interface IOTileAdvertisementFlags {
   hasData: boolean,
@@ -45,23 +46,64 @@ export class IOTileAdvertisementService {
     return this._platform;
   }
 
+  public processADelements(data: DataView){
+    let advertData: {[key: number]: any} = {}
+    let offset = 1;
+    let first = true;
+    let type = false;
+    let seg_length = 0;
+    for (let i = 0; i < data.byteLength; i += offset){
+      if(first){
+        offset = 1;
+        seg_length = data.getUint8(i) - 1;
+        if (seg_length > 0){
+          first = false;
+          type = true;
+        }
+      } else if (type){
+        try {
+          advertData[+data.getUint8(i)] = new DataView(data.buffer, i+1, seg_length);
+          type = false;
+          first = true;
+          offset += seg_length;
+        } catch (err){
+          catAdapter.error(`Segment exceeds buffer length: segment ${seg_length}, start index ${i+1}`, new Error("Advertisement Parse Error"));
+        }
+      }
+    }
+
+    return advertData;
+  }
+
   //FIXME: Process scan response information
   private processAndroidAdvertisement(connectionID: any, rssi: number, advert: ArrayBuffer): IOTileAdvertisement {
+    // catAdapter.info(`Processing Android Advert`);
     if (advert.byteLength != 31 && advert.byteLength != 62) {
+      catAdapter.error("Advertisement has the wrong length: " + advert.byteLength + " bytes", new Error("InvalidAdvertisingData"));
       throw new InvalidAdvertisingData("Advertisement has the wrong length: " + advert.byteLength + " bytes");
     }
 
     //FIXME: We should check for the actual service id here
-    let advertData = new DataView(advert, 0, 31);
-    let manuID = advertData.getUint16(23, true);
+    let advertData = new DataView(advert);
 
-    if (manuID != this.companyId) {
-      throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID);
+    // Break into AD elements (GAP: 0x1: flags (18 bits; don't use), 0x06: service class IDs (128 bits), 0xFF: manufacturer data[manuID (16 bits), deviceID (32 bits), flags (16 bits)])
+    let aDElements = this.processADelements(advertData);
+    catAdapter.info(JSON.stringify(aDElements));
+    let deviceID: any;
+    let flags: any;
+    if (aDElements[255]){
+      let manuID = aDElements[255].getUint16(0, true);
+
+      if (manuID != this.companyId) {
+        catAdapter.warn("Advertisement has an invalid company ID: " + manuID);
+        throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID);
+      } else {
+        catAdapter.info("VALID COMPANY ID: bytelength " + aDElements[255].byteLength);
+      }
+
+      deviceID = aDElements[255].getUint32(2, true);
+      flags = aDElements[255].getUint16(6, true);
     }
-
-    let deviceID = advertData.getUint32(25, true);
-    let flags = advertData.getUint16(29, true);
-
     return {
       batteryVoltage: 0,
       deviceID: deviceID,
@@ -75,16 +117,19 @@ export class IOTileAdvertisementService {
   //FIXME: Process scan response information
   private processIOSAdvertisement(connectionID: any, rssi: number, advert: any): IOTileAdvertisement {      
     if (!(advert && advert.kCBAdvDataManufacturerData)) {
+      catAdapter.warn("No manufacturing data in IOS device advertisement");
       throw new InvalidAdvertisingData("No manufacturing data in IOS device advertisement");
     }
 
     let manuData = new DataView(advert.kCBAdvDataManufacturerData);
     if (manuData.byteLength != 8 && manuData.byteLength != (8+16)) {
+      catAdapter.warn("IOS advertising data had the wrong manufacturing data length: " + manuData.byteLength);
       throw new InvalidAdvertisingData("IOS advertising data had the wrong manufacturing data length: " + manuData.byteLength);
     }
 
     let manuID = manuData.getUint16(0, true);
     if (manuID != this.companyId) {
+      catAdapter.warn("Advertisement has an invalid company ID: " + manuID);
       throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID); 
     }
 

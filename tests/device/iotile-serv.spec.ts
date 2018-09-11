@@ -8,7 +8,7 @@ import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
 import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 import { BasicNotificationService } from "../../src/common/notification-service";
 
-describe('module: iotile.device, service: IOTileDeviceService', function () {
+xdescribe('module: iotile.device, service: IOTileDeviceService', function () {
   let Adapter: IOTileAdapter;
   let Config;
 
