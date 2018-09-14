@@ -56,6 +56,7 @@ export class IOTileAdvertisementService {
       if(first){
         offset = 1;
         seg_length = data.getUint8(i) - 1;
+        // catAdapter.info(`SEGLENGTH: ${seg_length}`);
         if (seg_length > 0){
           first = false;
           type = true;
@@ -63,6 +64,7 @@ export class IOTileAdvertisementService {
       } else if (type){
         try {
           advertData[+data.getUint8(i)] = new DataView(data.buffer, i+1, seg_length);
+          // catAdapter.info(`Adding key ${+data.getUint8(i)} bytelength ${advertData[+data.getUint8(i)].byteLength}`);
           type = false;
           first = true;
           offset += seg_length;
@@ -77,33 +79,27 @@ export class IOTileAdvertisementService {
 
   //FIXME: Process scan response information
   private processAndroidAdvertisement(connectionID: any, rssi: number, advert: ArrayBuffer): IOTileAdvertisement {
-    // catAdapter.info(`Processing Android Advert`);
     if (advert.byteLength != 31 && advert.byteLength != 62) {
       catAdapter.error("Advertisement has the wrong length: " + advert.byteLength + " bytes", new Error("InvalidAdvertisingData"));
       throw new InvalidAdvertisingData("Advertisement has the wrong length: " + advert.byteLength + " bytes");
     }
 
     //FIXME: We should check for the actual service id here
-    let advertData = new DataView(advert);
+    let advertData = new DataView(advert, 0, 31);
 
     // Break into AD elements (GAP: 0x1: flags (18 bits; don't use), 0x06: service class IDs (128 bits), 0xFF: manufacturer data[manuID (16 bits), deviceID (32 bits), flags (16 bits)])
     let aDElements = this.processADelements(advertData);
-    catAdapter.info(JSON.stringify(aDElements));
-    let deviceID: any;
-    let flags: any;
-    if (aDElements[255]){
-      let manuID = aDElements[255].getUint16(0, true);
 
-      if (manuID != this.companyId) {
-        catAdapter.warn("Advertisement has an invalid company ID: " + manuID);
-        throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID);
-      } else {
-        catAdapter.info("VALID COMPANY ID: bytelength " + aDElements[255].byteLength);
-      }
+    let manuID = aDElements[255].getUint16(0, true);
 
-      deviceID = aDElements[255].getUint32(2, true);
-      flags = aDElements[255].getUint16(6, true);
+    if (manuID != this.companyId) {
+      catAdapter.warn("Advertisement has an invalid company ID: " + manuID);
+      throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID);
     }
+
+    let deviceID = aDElements[255].getUint32(2, true);
+    let flags = aDElements[255].getUint16(4, true);
+    
     return {
       batteryVoltage: 0,
       deviceID: deviceID,
