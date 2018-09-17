@@ -1,11 +1,14 @@
 {
-  "name": "iotile-device",
-  "version": "0.0.3",
+  "name": "@iotile/iotile-device",
+  "version": "0.0.5",
   "description": "A typescript library for interfacing with IOTile BLE devices",
   "main": "dist/iotile-device.umd.js",
   "types": "dist/types/index.d.ts",
   "module": "dist/iotile-device.es5.js",
-  "repository": "https://github.com/iotile/iotile-device",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iotile/iotile-device.git"
+  },
   "license": "MIT",
   "keywords": [
     "typescript",
@@ -96,5 +99,13 @@
   },
   "prettier": {
     "singleQuote": true
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/iotile/iotile-device/issues"
+  },
+  "homepage": "https://github.com/iotile/iotile-device#readme",
+  "directories": {
+    "test": "tests"
+  },
+  "author": "kdehart"
 }

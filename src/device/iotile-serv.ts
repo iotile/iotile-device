@@ -15,6 +15,7 @@ import {IOTileDevice} from "./iotile-device";
 import {AbstractNotificationService} from "../common/notification-service";
 import {catAdapter} from "../config";
 import { MockBleService } from "../mocks/mock-ble-serv";
+import { Category } from "typescript-logging";
 
 
 /**
@@ -83,6 +84,8 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   
   public lastScanResults: IOTileAdvertisement[];
   public mockBLEService: any;
+  public catAdapter: Category;
+  private config: any;
 
   public rpcInterface: IOTileRPCInterface;
   private streamingInterface: IOTileStreamingInterface;
@@ -108,7 +111,8 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     super();
     
     this.adParser = new IOTileAdvertisementService(Config.BLE.ARCH_BLE_COMPANY_ID, platform);
-
+    this.config = Config;
+    this.catAdapter = catAdapter;
     this.notification = notificationService;
     this.state = AdapterState.Idle;
     this.connectionHooks = [];
@@ -168,7 +172,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
       */
 
     if (Config.BLE && Config.BLE.MOCK_BLE) {
-      catAdapter.info('Using Mock BLE implementation.');
+      // this.catAdapter.info('Using Mock BLE implementation.');
       this.mockBLEService = new MockBleService(Config);
       window.ble = this.mockBLEService;
       window.device = {'platform': Config.BLE.MOCK_BLE_DEVICE};
@@ -188,16 +192,16 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     // configure the device to increase the maximum report size
     try {
       await adapter.errorHandlingRPC(8, 0x0A05, "LB", "L", [1024*1024, 0], 5.0);
-
+      
       // confirm report size
       let [maxPacket, _comp1, _comp2] = await adapter.typedRPC(8, 0x0A06, "", "LBB", [], 5.0);
       if (maxPacket != 1024*1024){
-        catAdapter.error("Device report size failed to update", Error);
+        this.catAdapter.error("Device report size failed to update", Error);
       } else {
-        catAdapter.info("Large device report size successfully configured");
+        this.catAdapter.info("Large device report size successfully configured");
       }
     } catch (err){
-      catAdapter.debug("Couldn't configure sending larger reports on this device: ", err);
+      this.catAdapter.info("Couldn't configure sending larger reports on this device: "  +  JSON.stringify(err));
     }
     
     return null;
@@ -345,7 +349,6 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
       window.ble.startScan([], function (peripheral) {
           try {
             let device = that.createIOTileAdvertisement(peripheral);
-
             //Make sure we only report each device once even on OSes like iOS that
             //can return multiple scan events per device in a given scan period.
             if (device.slug in uniqueDevices) {
@@ -356,13 +359,16 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
             foundDevices.push(device);
           } catch (err) {
             if (!(err instanceof Errors.InvalidAdvertisingData)) {
+              that.catAdapter.error("Error Scanning for Devices", new Error(JSON.stringify(err)));
               throw err;
             }
           }
         });
-
+      
       await delay(scanPeriod * 1000);
       await this.stopScan();
+    } catch (err){
+      this.catAdapter.error("Problem calling BLE startScan", new Error(JSON.stringify(err)));
     } finally {
       this.state = AdapterState.Idle;
       this.notify(AdapterEvent.ScanFinished, {"count": foundDevices.length});
@@ -485,12 +491,14 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     //Run all preconnection hooks here to make sure that we should
     //connect to this device.  Do this before notifying ConnectionStarted
     //so that users can capture that event to show a loading modal.
+    this.catAdapter.info("Running preconnectionHooks");
     for (let i = 0; i < this.preconnectionHooks.length; ++i) {
       let hook = this.preconnectionHooks[i];
 
       let redirect = await hook(advert, this);
 
       if (redirect) {
+        this.catAdapter.error(`Error running preconnection hooks`, new Error(redirect.reason));
         throw new Errors.ConnectionCancelledError(redirect);
       }
     }
@@ -502,6 +510,10 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
       this.connectedDevice = await this.connectInternal(advert);
 
       //this.state is updated by connectInternal
+      if (this.config.ENV.CONNECTION_DELAY){
+        this.catAdapter.info("Connection delay: " + this.config.ENV.CONNECTION_DELAY);
+        await delay(this.config.ENV.CONNECTION_DELAY);
+      }
 
       try {
           if (openRPC) {
@@ -512,27 +524,33 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
           await this.openInterface(Interface.Script);
 
           //Now run all of the connection hooks that are registered for this device
+          this.catAdapter.info(`Running ${this.connectionHooks.length} connectionHooks`);
           for (let i = 0; i < this.connectionHooks.length; ++i) {
             let hook = this.connectionHooks[i];
 
             let redirect = await hook(this.connectedDevice, this);
             if (redirect) {
+              this.catAdapter.error(`Error running connection hooks`, new Error(redirect.reason));
               throw new Errors.ConnectionCancelledError(redirect);
             }
           }
+          this.catAdapter.info('Finished connectionHooks');
 
           //Users can pass a one-time hook that will be called as if it were registered
           //with registerConnectionHook.  This is useful for controllers that need to do
           //predevice setup before allowing realtime and historical streaming.
           if (prestreamingHook != null) {
+            this.catAdapter.info("Running prestreamingHooks");
             await prestreamingHook(this.connectedDevice, this);
           }
 
           if (openStreaming) {
+            this.catAdapter.info("Running openStreaming interface");
             await this.openInterface(Interface.Streaming);
           }
       } catch (err) {
         await this.disconnect();
+        this.catAdapter.error(`Connection Cancelled`, new Error(JSON.stringify(err)));
         throw err;
       }
     } finally {
@@ -700,7 +718,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     let errorCode = resp.shift();
 
     if (errorCode != 0) {
-      catAdapter.error(`Failed to execute rpc ${rpcID} on tile ${address}`, Error);
+      this.catAdapter.error(`Failed to execute rpc ${rpcID} on tile ${address}`, Error);
       throw new Errors.RPCError(address, rpcID, errorCode);
     }
     
@@ -976,7 +994,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   /**
    * Wrapper around cordova ble plugin with a Promise based interface
    */
-  private async stopScan() {
+  public async stopScan() {
     return new Promise<void>((resolve, reject) => {
       window.ble.stopScan(resolve, reject);
     })
@@ -1056,7 +1074,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
         that.supportsFastWrites = that.checkFastWriteSupport(peripheral);
 
         if (that.supportsFastWrites) {
-          catAdapter.info("Device supports fast writes, increasing RPC and script speed.");
+          that.catAdapter.info("Device supports fast writes, increasing RPC and script speed.");
         }
 
         resolve(new IOTileDevice(that, advert));
@@ -1124,7 +1142,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
    * or if the connection attempt fails.
    */
   private disconnectCallback(reason: any) {
-    catAdapter.info("Disconnect callback: " + JSON.stringify(reason));
+    this.catAdapter.info("Disconnect callback: " + JSON.stringify(reason));
 
     if (this.state == AdapterState.Connected) {
       this.state = AdapterState.Idle;
