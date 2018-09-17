@@ -32,6 +32,7 @@
       }
     },
     "transform": {
+      ".b64": "<rootDir>/tests/preprocess-binary.js",
       ".(js|ts|tsx)": "<rootDir>/node_modules/ts-jest/preprocessor.js"
     },
     "transformIgnorePatterns": [

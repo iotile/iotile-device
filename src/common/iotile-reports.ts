@@ -1,5 +1,6 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
 import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "iotile-common";
+import { Stream } from "stream";
 
 export class RawReading {
     private _raw_timestamp: number;
@@ -108,7 +109,8 @@ export interface SignedReportHeader {
     sentTime: number,
     signatureFlags: number,
     streamer: number,
-    selector: number
+    selector: number,
+    decodedSelector: StreamSelector
 }
 
 export interface SignedReportFooter {
@@ -135,6 +137,96 @@ export enum SignatureStatus {
     Unknown = 2
 }
 
+export enum StreamMatchOperator {
+    UserOnly = 0,
+    SystemOnly = 1,
+    UserAndBreaks = 2,
+    UserAndSystem = 3
+}
+
+export enum StreamType {
+    Storage = 0,
+    Unbuffered = 1,
+    Constant = 2,
+    Input = 3,
+    Count = 4,
+    Output = 5,
+    Realtime = 6
+}
+
+export class StreamSelector {
+    public static readonly WILDCARD: number = (1 << 11) - 1;
+    public static readonly REBOOT_STREAM: number = 0x5C00;
+
+    public readonly type: StreamType;
+    public readonly code: number;
+    public readonly match_op: StreamMatchOperator;
+    public readonly isWildcard: boolean;
+
+    constructor(encodedSelector: number) {
+        [this.type, this.code, this.match_op] = StreamSelector.decode(encodedSelector);
+        this.isWildcard = (this.code === StreamSelector.WILDCARD);
+    }
+
+    public matches(streamID: number): boolean {
+        let [type, code, op] = StreamSelector.decode(streamID);
+
+        //Stream IDs must be either system or user, not any of the combined selectors
+        if (op === StreamMatchOperator.UserAndSystem || op === StreamMatchOperator.UserAndBreaks)
+            return false;
+
+        if (!this.isWildcard && this.code !== code)
+            return false;
+        
+        if (this.type !== type)
+            return false;
+        
+        if (this.match_op === StreamMatchOperator.SystemOnly && op == StreamMatchOperator.UserOnly)
+            return false;
+        
+        if (this.match_op === StreamMatchOperator.UserOnly && op == StreamMatchOperator.SystemOnly)
+            return false;
+        
+        /*
+         * The UserAndBreaks selector matches all user streams + the global reboot stream but no other system streams.
+         */
+        if (this.match_op === StreamMatchOperator.UserAndBreaks && op == StreamMatchOperator.SystemOnly && streamID !== StreamSelector.REBOOT_STREAM)
+            return false;
+
+        return true;
+    }
+
+    public static decode(encodedSelector: number): [StreamType, number, StreamMatchOperator] {
+        if (encodedSelector < 0 || encodedSelector > 0xFFFF)
+            throw new ArgumentError(`invalid number in StreamSelector that is not in [0, 65535]: ${encodedSelector}`);
+
+        if (encodedSelector !== Math.floor(encodedSelector))
+            throw new ArgumentError(`You must create a StreamSelector with a whole number: ${encodedSelector}`);
+
+        let isSystem = !!(encodedSelector & (1 << 11));
+        let includeBreaks = !!(encodedSelector & (1 << 15));
+        let match_op = StreamSelector.getOperator(isSystem, includeBreaks);
+        let code = encodedSelector & ((1 << 11) - 1);
+        let type = (encodedSelector >> 12) & 0b111;
+        
+        return [type, code, match_op];
+    }
+
+    private static getOperator(isSystem: boolean, includeBreaks: boolean) {
+        if (isSystem && !includeBreaks)
+            return StreamMatchOperator.SystemOnly;
+        
+        if (!isSystem && !includeBreaks)
+            return StreamMatchOperator.UserOnly;
+        
+        if (isSystem && includeBreaks)
+            return StreamMatchOperator.UserAndSystem;
+        
+        //!isSystem && includeBreaks
+        return StreamMatchOperator.UserAndBreaks;
+    }
+}
+
 export class SignedListReport extends IOTileReport {
     private _uuid: number;
     private _readings: Array<RawReading>;
@@ -145,6 +237,27 @@ export class SignedListReport extends IOTileReport {
     private _streamer: number;
     private _header: SignedReportHeader;
     private _valid: SignatureStatus;
+
+    public static extractHeader(data: ArrayBuffer): SignedReportHeader {
+        if (data.byteLength < REPORT_HEADER_SIZE) {
+            throw new ArgumentError("Invalid report that was not long enough to contain a valid header");
+        }
+
+        let header = unpackArrayBuffer('BBHLLLBBH', data.slice(0, REPORT_HEADER_SIZE));
+
+        return {
+            format: header[0],
+            lengthLow: header[1],
+            lengthHigh: header[2],
+            uuid: header[3],
+            reportID: header[4],
+            sentTime: header[5],
+            signatureFlags: header[6],
+            streamer: header[7],
+            selector: header[8],
+            decodedSelector: new StreamSelector(header[8])
+        }
+    }
 
     constructor (uuid: number, streamer: number, readings: Array<RawReading>, rawData: ArrayBuffer, receivedTime: Date) {
         super();
@@ -176,7 +289,7 @@ export class SignedListReport extends IOTileReport {
             }
         }
 
-        this._header = this.extractHeader();
+        this._header = SignedListReport.extractHeader(rawData);
         this._valid = this.validateSignature();
     }
 
@@ -210,28 +323,6 @@ export class SignedListReport extends IOTileReport {
 
     public get header(): SignedReportHeader {
         return this._header;
-    }
-
-    private extractHeader(): SignedReportHeader {
-        let data = this._rawData;
-
-        if (data.byteLength < REPORT_HEADER_SIZE) {
-            throw new ArgumentError("Invalid report that was not long enough to contain a valid header");
-        }
-
-        let header = unpackArrayBuffer('BBHLLLBBH', data.slice(0, REPORT_HEADER_SIZE));
-
-        return {
-            format: header[0],
-            lengthLow: header[1],
-            lengthHigh: header[2],
-            uuid: header[3],
-            reportID: header[4],
-            sentTime: header[5],
-            signatureFlags: header[6],
-            streamer: header[7],
-            selector: header[8]
-        }
     }
 
     private validateSignature(): SignatureStatus {
