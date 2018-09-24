@@ -20,3 +20,4 @@ export {setupMockBLE} from "./mocks/helpers/mock-ble-setup";
 export * from "./mocks/mock-ble-device";
 export * from "./mocks/utilities";
 export * from "./mocks/virtual-device";
+export * from "./common/report-reassembler";

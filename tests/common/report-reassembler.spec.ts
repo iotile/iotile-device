@@ -27,12 +27,14 @@ function convertErrorList(errors: any[]): any {
 
 function checkReport(data: ArrayBuffer, errors: any[]) {
         let fixer = new ReportReassembler(data);
+        expect(fixer.isValid()).toBeFalsy();
 
         let result = fixer.fixOutOfOrderChunks();
         let trans = fixer.getTranspositions();
 
         expect(trans).toEqual(convertErrorList(errors));
         expect(result).toBeTruthy();
+        expect(fixer.isValid()).toBeTruthy();
 }
 
 describe('class: ReportReassembler', () => {

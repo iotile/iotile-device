@@ -32,9 +32,9 @@
  */
 
 import { SignedReportHeader, StreamSelector, SignedListReport } from "./iotile-reports";
-import { SHA256Calculator, unpackArrayBuffer, copyArrayBuffer, ArgumentError } from "iotile-common";
+import { SHA256Calculator, unpackArrayBuffer, copyArrayBuffer, ArgumentError, InvalidOperationError } from "iotile-common";
 
-interface DecodedChunk {
+export interface DecodedChunk {
     streams: (number | null)[],
     reserved: (number | null)[],
     ids: (number | null)[],
@@ -44,7 +44,7 @@ interface DecodedChunk {
     index: number
 }
 
-interface Transposition {
+export interface Transposition {
     src: number,
     dst: number
 }
@@ -55,7 +55,6 @@ export class ReportReassembler {
     private header: SignedReportHeader;
     private originalSignature: ArrayBuffer;
     private sigCalculator: SHA256Calculator;
-
 
     private errors: Transposition[];
     
@@ -74,6 +73,14 @@ export class ReportReassembler {
 
     public getTranspositions(): Transposition[] {
         return this.errors;
+    }
+
+    public getFixedReport(): ArrayBuffer {
+        if (this.checkSignature()){
+            return this.currentReport;
+        } else {
+            throw new InvalidOperationError("Report has invalid signature");
+        }
     }
 
     public fixOutOfOrderChunks(): boolean {
@@ -145,7 +152,7 @@ export class ReportReassembler {
         if (destIndex >= srcIndex)
             throw new ArgumentError("Attempting to move chunk later rather than earlier in report.");
 
-        for(let curr=srcIndex;curr > destIndex; --curr) {
+        for(let curr=srcIndex; curr > destIndex; --curr) {
             let swapDst = new Uint8Array(this.currentReport, (curr - 1)*20, 20);
             let swapSrc = new Uint8Array(this.currentReport, (curr)*20, 20);
             tmp.set(swapDst);
@@ -298,7 +305,4 @@ export class ReportReassembler {
 
         return this.sigCalculator.compareSignatures(this.originalSignature.slice(0, prefix), actual);
     }
-
-
-
 }

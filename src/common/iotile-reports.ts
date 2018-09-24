@@ -1,6 +1,7 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
 import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "iotile-common";
-import { Stream } from "stream";
+import { ReportReassembler } from "./report-reassembler";
+import { catService } from "../config";
 
 export class RawReading {
     private _raw_timestamp: number;
@@ -325,6 +326,45 @@ export class SignedListReport extends IOTileReport {
         return this._header;
     }
 
+    // TODO
+    private updateReadings(rawData: ArrayBuffer): Array<RawReading>{
+        let readings: Array<RawReading> = [];
+        // Make new readings from rawData
+        // ReportParser?
+        return readings;
+    }
+
+    private updateReport(rawData: ArrayBuffer, readings?: Array<RawReading>){
+        this._rawData = rawData;
+        if (!readings){
+            readings = this.updateReadings(rawData);
+        }
+        this._readings = readings;
+
+        //Calculate lowest and highest ids based on decoded readings
+        if (readings.length == 0) {
+            this._lowestID = 0;
+            this._highestID = 0;
+        } else {
+            //Initialize with the first reading to avoid needing to use sentinal values
+            this._lowestID = readings[0].id;
+            this._highestID = readings[0].id;
+
+            for (let i = 1; i < readings.length; ++i) {
+                let id = readings[i].id;
+                if (id < this._lowestID) {
+                    this._lowestID = id;
+                }
+
+                if (id > this._highestID) {
+                    this._highestID = id;
+                }
+            }
+        }
+
+        this._header = SignedListReport.extractHeader(rawData);
+    }
+
     private validateSignature(): SignatureStatus {
         let calc = new SHA256Calculator();
 
@@ -336,10 +376,21 @@ export class SignedListReport extends IOTileReport {
         let embeddedSig = this._rawData.slice(this._rawData.byteLength - 16);
 
         let signature = calc.calculateSignature(signedData);
+
         if (calc.compareSignatures(embeddedSig, signature)) {
             return SignatureStatus.Valid;
+        } else {
+            catService.info("[IOTileReport] Report signature invalid, attempting to reassemble");
+            let reassembler = new ReportReassembler(this.rawData);
+            let fixable = reassembler.fixOutOfOrderChunks();
+            if (!fixable){
+                catService.error("[IOTileReport] Unable to correct report signature", new Error("InvalidHash"));
+                return SignatureStatus.Invalid;
+            } else {
+                let newReport = reassembler.getFixedReport();
+                this.updateReport(newReport);
+            }
+            return SignatureStatus.Valid;
         }
-
-        return SignatureStatus.Invalid;
     }
 }
