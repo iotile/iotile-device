@@ -20,11 +20,3 @@ describe('IndividualReport', function() {
         expect(signed).toBe(-45);
     });
 })
-
-describe('SignedListReport', function() {
-    it('should be able to correct a report received out of order', function(){
-        // TODO: define a good test
-        expect(true).toBeTruthy();
-        let testReportData = require("./test-data/2018-07-26T12_57_21.728491Z--kale.b64");
-    });
-})

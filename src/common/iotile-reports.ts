@@ -326,12 +326,25 @@ export class SignedListReport extends IOTileReport {
         return this._header;
     }
 
-    // TODO
     private updateReadings(rawData: ArrayBuffer): Array<RawReading>{
         let readings: Array<RawReading> = [];
-        // Make new readings from rawData
-        // ReportParser?
-        return readings;
+        let onTime = new Date(this._receivedTime.valueOf() - (this._header.sentTime*1000));
+        //Now decode and parse the actual readings in the report
+        // get length of readings
+        let allReadingsData = rawData.slice(20, rawData.byteLength - 24);
+
+        for (let i = 0; i < allReadingsData.byteLength; i += 16) {
+            let readingData = allReadingsData.slice(i, i+16);
+            let reading = unpackArrayBuffer("HHLLL", readingData);
+            let stream = reading[0]; //reading[1] is reserved
+            let readingID = reading[2];
+            let readingTimestamp = reading[3];
+            let readingValue = reading[4];
+
+            let parsedReading = new RawReading(stream, readingValue, readingTimestamp, onTime, readingID);
+            readings.push(parsedReading);
+        }
+        return this._readings;
     }
 
     private updateReport(rawData: ArrayBuffer, readings?: Array<RawReading>){
