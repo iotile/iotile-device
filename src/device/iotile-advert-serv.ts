@@ -1,4 +1,3 @@
-///<reference path="../../typings/cordova_plugins.d.ts"/>
 import {InvalidAdvertisingData} from "../common/error-space";
 import {deviceIDToSlug} from "iotile-common";
 import {Platform} from "../common/iotile-types";
@@ -90,24 +89,30 @@ export class IOTileAdvertisementService {
     // Break into AD elements (GAP: 0x1: flags (18 bits; don't use), 0x06: service class IDs (128 bits), 0xFF: manufacturer data[manuID (16 bits), deviceID (32 bits), flags (16 bits)])
     let aDElements = this.processADelements(advertData);
 
-    let manuID = aDElements[255].getUint16(0, true);
+    if (aDElements[255] && aDElements[255].byteLength >= 8){
+      let manuID = aDElements[255].getUint16(0, true);
 
-    if (manuID != this.companyId) {
-      catAdapter.warn("Advertisement has an invalid company ID: " + manuID);
-      throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID);
+      if (manuID != this.companyId) {
+        catAdapter.debug("Advertisement has an invalid company ID: " + manuID);
+        throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID);
+      }
+
+      let deviceID = aDElements[255].getUint32(2, true);
+      let flags = aDElements[255].getUint16(4, true);
+      
+      return {
+        batteryVoltage: 0,
+        deviceID: deviceID,
+        flags: this.parseFlags(flags),
+        connectionID: connectionID,
+        rssi: rssi,
+        slug: deviceIDToSlug(deviceID)
+      };
+      
+    } else {
+      catAdapter.debug("Advertisement has incorrect manufacturer information");
+      throw new InvalidAdvertisingData("Advertisement has incorrect manufacturer information");
     }
-
-    let deviceID = aDElements[255].getUint32(2, true);
-    let flags = aDElements[255].getUint16(4, true);
-    
-    return {
-      batteryVoltage: 0,
-      deviceID: deviceID,
-      flags: this.parseFlags(flags),
-      connectionID: connectionID,
-      rssi: rssi,
-      slug: deviceIDToSlug(deviceID)
-    };
   }
 
   //FIXME: Process scan response information

@@ -1,5 +1,7 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
 import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "iotile-common";
+import { ReportReassembler } from "./report-reassembler";
+import { catService } from "../config";
 
 export class RawReading {
     private _raw_timestamp: number;
@@ -108,7 +110,8 @@ export interface SignedReportHeader {
     sentTime: number,
     signatureFlags: number,
     streamer: number,
-    selector: number
+    selector: number,
+    decodedSelector: StreamSelector
 }
 
 export interface SignedReportFooter {
@@ -135,6 +138,96 @@ export enum SignatureStatus {
     Unknown = 2
 }
 
+export enum StreamMatchOperator {
+    UserOnly = 0,
+    SystemOnly = 1,
+    UserAndBreaks = 2,
+    UserAndSystem = 3
+}
+
+export enum StreamType {
+    Storage = 0,
+    Unbuffered = 1,
+    Constant = 2,
+    Input = 3,
+    Count = 4,
+    Output = 5,
+    Realtime = 6
+}
+
+export class StreamSelector {
+    public static readonly WILDCARD: number = (1 << 11) - 1;
+    public static readonly REBOOT_STREAM: number = 0x5C00;
+
+    public readonly type: StreamType;
+    public readonly code: number;
+    public readonly match_op: StreamMatchOperator;
+    public readonly isWildcard: boolean;
+
+    constructor(encodedSelector: number) {
+        [this.type, this.code, this.match_op] = StreamSelector.decode(encodedSelector);
+        this.isWildcard = (this.code === StreamSelector.WILDCARD);
+    }
+
+    public matches(streamID: number): boolean {
+        let [type, code, op] = StreamSelector.decode(streamID);
+
+        //Stream IDs must be either system or user, not any of the combined selectors
+        if (op === StreamMatchOperator.UserAndSystem || op === StreamMatchOperator.UserAndBreaks)
+            return false;
+
+        if (!this.isWildcard && this.code !== code)
+            return false;
+        
+        if (this.type !== type)
+            return false;
+        
+        if (this.match_op === StreamMatchOperator.SystemOnly && op == StreamMatchOperator.UserOnly)
+            return false;
+        
+        if (this.match_op === StreamMatchOperator.UserOnly && op == StreamMatchOperator.SystemOnly)
+            return false;
+        
+        /*
+         * The UserAndBreaks selector matches all user streams + the global reboot stream but no other system streams.
+         */
+        if (this.match_op === StreamMatchOperator.UserAndBreaks && op == StreamMatchOperator.SystemOnly && streamID !== StreamSelector.REBOOT_STREAM)
+            return false;
+
+        return true;
+    }
+
+    public static decode(encodedSelector: number): [StreamType, number, StreamMatchOperator] {
+        if (encodedSelector < 0 || encodedSelector > 0xFFFF)
+            throw new ArgumentError(`invalid number in StreamSelector that is not in [0, 65535]: ${encodedSelector}`);
+
+        if (encodedSelector !== Math.floor(encodedSelector))
+            throw new ArgumentError(`You must create a StreamSelector with a whole number: ${encodedSelector}`);
+
+        let isSystem = !!(encodedSelector & (1 << 11));
+        let includeBreaks = !!(encodedSelector & (1 << 15));
+        let match_op = StreamSelector.getOperator(isSystem, includeBreaks);
+        let code = encodedSelector & ((1 << 11) - 1);
+        let type = (encodedSelector >> 12) & 0b111;
+        
+        return [type, code, match_op];
+    }
+
+    private static getOperator(isSystem: boolean, includeBreaks: boolean) {
+        if (isSystem && !includeBreaks)
+            return StreamMatchOperator.SystemOnly;
+        
+        if (!isSystem && !includeBreaks)
+            return StreamMatchOperator.UserOnly;
+        
+        if (isSystem && includeBreaks)
+            return StreamMatchOperator.UserAndSystem;
+        
+        //!isSystem && includeBreaks
+        return StreamMatchOperator.UserAndBreaks;
+    }
+}
+
 export class SignedListReport extends IOTileReport {
     private _uuid: number;
     private _readings: Array<RawReading>;
@@ -145,6 +238,27 @@ export class SignedListReport extends IOTileReport {
     private _streamer: number;
     private _header: SignedReportHeader;
     private _valid: SignatureStatus;
+
+    public static extractHeader(data: ArrayBuffer): SignedReportHeader {
+        if (data.byteLength < REPORT_HEADER_SIZE) {
+            throw new ArgumentError("Invalid report that was not long enough to contain a valid header");
+        }
+
+        let header = unpackArrayBuffer('BBHLLLBBH', data.slice(0, REPORT_HEADER_SIZE));
+
+        return {
+            format: header[0],
+            lengthLow: header[1],
+            lengthHigh: header[2],
+            uuid: header[3],
+            reportID: header[4],
+            sentTime: header[5],
+            signatureFlags: header[6],
+            streamer: header[7],
+            selector: header[8],
+            decodedSelector: new StreamSelector(header[8])
+        }
+    }
 
     constructor (uuid: number, streamer: number, readings: Array<RawReading>, rawData: ArrayBuffer, receivedTime: Date) {
         super();
@@ -176,7 +290,7 @@ export class SignedListReport extends IOTileReport {
             }
         }
 
-        this._header = this.extractHeader();
+        this._header = SignedListReport.extractHeader(rawData);
         this._valid = this.validateSignature();
     }
 
@@ -212,26 +326,56 @@ export class SignedListReport extends IOTileReport {
         return this._header;
     }
 
-    private extractHeader(): SignedReportHeader {
-        let data = this._rawData;
+    private updateReadings(rawData: ArrayBuffer): Array<RawReading>{
+        let readings: Array<RawReading> = [];
+        let onTime = new Date(this._receivedTime.valueOf() - (this._header.sentTime*1000));
+        //Now decode and parse the actual readings in the report
+        // get length of readings
+        let allReadingsData = rawData.slice(20, rawData.byteLength - 24);
 
-        if (data.byteLength < REPORT_HEADER_SIZE) {
-            throw new ArgumentError("Invalid report that was not long enough to contain a valid header");
+        for (let i = 0; i < allReadingsData.byteLength; i += 16) {
+            let readingData = allReadingsData.slice(i, i+16);
+            let reading = unpackArrayBuffer("HHLLL", readingData);
+            let stream = reading[0]; //reading[1] is reserved
+            let readingID = reading[2];
+            let readingTimestamp = reading[3];
+            let readingValue = reading[4];
+
+            let parsedReading = new RawReading(stream, readingValue, readingTimestamp, onTime, readingID);
+            readings.push(parsedReading);
+        }
+        return this._readings;
+    }
+
+    private updateReport(rawData: ArrayBuffer, readings?: Array<RawReading>){
+        this._rawData = rawData;
+        if (!readings){
+            readings = this.updateReadings(rawData);
+        }
+        this._readings = readings;
+
+        //Calculate lowest and highest ids based on decoded readings
+        if (readings.length == 0) {
+            this._lowestID = 0;
+            this._highestID = 0;
+        } else {
+            //Initialize with the first reading to avoid needing to use sentinal values
+            this._lowestID = readings[0].id;
+            this._highestID = readings[0].id;
+
+            for (let i = 1; i < readings.length; ++i) {
+                let id = readings[i].id;
+                if (id < this._lowestID) {
+                    this._lowestID = id;
+                }
+
+                if (id > this._highestID) {
+                    this._highestID = id;
+                }
+            }
         }
 
-        let header = unpackArrayBuffer('BBHLLLBBH', data.slice(0, REPORT_HEADER_SIZE));
-
-        return {
-            format: header[0],
-            lengthLow: header[1],
-            lengthHigh: header[2],
-            uuid: header[3],
-            reportID: header[4],
-            sentTime: header[5],
-            signatureFlags: header[6],
-            streamer: header[7],
-            selector: header[8]
-        }
+        this._header = SignedListReport.extractHeader(rawData);
     }
 
     private validateSignature(): SignatureStatus {
@@ -245,10 +389,21 @@ export class SignedListReport extends IOTileReport {
         let embeddedSig = this._rawData.slice(this._rawData.byteLength - 16);
 
         let signature = calc.calculateSignature(signedData);
+
         if (calc.compareSignatures(embeddedSig, signature)) {
             return SignatureStatus.Valid;
+        } else {
+            catService.info("[IOTileReport] Report signature invalid, attempting to reassemble");
+            let reassembler = new ReportReassembler(this.rawData);
+            let fixable = reassembler.fixOutOfOrderChunks();
+            if (!fixable){
+                catService.error("[IOTileReport] Unable to correct report signature", new Error("InvalidHash"));
+                return SignatureStatus.Invalid;
+            } else {
+                let newReport = reassembler.getFixedReport();
+                this.updateReport(newReport);
+            }
+            return SignatureStatus.Valid;
         }
-
-        return SignatureStatus.Invalid;
     }
 }
