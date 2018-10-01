@@ -50,6 +50,10 @@ export class IOTileStreamingInterface {
                         case 'ReportStalledEvent':
                         this.channel.notify(IOTileTypes.AdapterEvent.RobustReportStalled, event);
                         break;
+
+                        case 'ReportInvalidEvent':
+                        this.channel.notify(IOTileTypes.AdapterEvent.RobustReportInvalid, event);
+                        break;
     
                         case 'ReportProgressEvent':
                         this.channel.notify(IOTileTypes.AdapterEvent.RobustReportProgress, event);
