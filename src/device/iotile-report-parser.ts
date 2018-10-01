@@ -1,6 +1,6 @@
 import {RingBuffer} from "../common/ring-buffer";
 import * as Errors from "../common/error-space";
-import {RawReading, IndividualReport, SignedListReport} from "../common/iotile-reports";
+import {RawReading, IndividualReport, SignedListReport, SignatureStatus} from "../common/iotile-reports";
 import {unpackArrayBuffer} from "iotile-common";
 
 export enum ReceiveStatus {
@@ -50,6 +50,12 @@ export class ReportProgressEvent extends ReportParserEvent {
 export class ReportFinishedEvent extends ReportParserEvent {
     constructor(reportIndex: number) {
         super('ReportFinishedEvent', 100, reportIndex);
+    }
+}
+
+export class ReportInvalidEvent extends ReportParserEvent {
+    constructor(reportIndex: number) {
+        super('ReportInvalidEvent', 100, reportIndex);
     }
 }
 
@@ -348,12 +354,16 @@ export class ReportParser {
         }
 
         let rep = new SignedListReport(uuid, originStreamer, readings, totalReport, this._receivedTime);
-        this._reportsReceived += 1;
+        if (rep.validity == SignatureStatus.Invalid) {
+            this._lastEvent = new ReportInvalidEvent(this._reportsReceived);
+        } else {
+            this._reportsReceived += 1;
         
-        //Clear the received time so that when the next report comes in we trigger ourselves to stamp it again
-        //see the lines at the beginning of this function.
-        this._receivedTime = null;
-        return rep;
+            //Clear the received time so that when the next report comes in we trigger ourselves to stamp it again
+            //see the lines at the beginning of this function.
+            this._receivedTime = null;
+            return rep;
+        }    
     }
 
     /**
