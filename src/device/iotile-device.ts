@@ -204,6 +204,9 @@ export class IOTileDevice {
   }
 
   public async acknowledgeStreamerRPC(streamer: number, highestID: number, force: boolean) {
+    if (streamer > 255) {
+      throw new ArgumentError('Acknowledgement RPC called with invalid streamer index');
+    }
     let args = packArrayBuffer("HHL", streamer, force? 1: 0, highestID);
 
     let resp = await this.adapter.rpc(8, 0x200f, args, 2.0);
