@@ -4,6 +4,10 @@ declare interface BLEDescriptor {
 	uuid: string
 }
 
+declare interface BLEScanOptions {
+	reportDuplicates?: boolean
+}
+
 declare interface BLECharacteristic {
 	service: string,
 	characteristic: string,
@@ -21,7 +25,8 @@ declare interface BLEPeripheral {
 }
 
 declare class CordovaBLECentral {
-	startScan(uuidList: string[], callback: (peripheral: any) => void): void;
+	startScan(uuidList: string[], callback: (peripheral: any) => void, failure?: (reason: any) => void): void;
+	startScanWithOptions(uuidList: string[], options: BLEScanOptions, callback: (peripheral: any) => void, failure?: (reason: any) => void): void;
 	stopScan(resolve: () => void, reject: (reason: string) => void): Promise<void>;
 	connect(bleDeviceID: any, resolve: (peripheral: BLEPeripheral) => void, reject: (reason: string) => void): Promise<void>;
 	disconnect(bleDeviceID: any, resolve: () => void, reject: (reason: string) => void): Promise<void>;

@@ -2,7 +2,8 @@
 import * as Errors from "../common/error-space";
 import {AdapterState, AdapterEvent, IOTileCharacteristic, NotificationCallback, 
   BLEChannel, UserRedirectionInfo, Platform} from "../common/iotile-types";
-import {IOTileAdvertisement, IOTileAdvertisementService} from "./iotile-advert-serv";
+import {IOTileAdvertisement} from "../common/advertisement";
+import {IOTileAdvertisementService} from "./iotile-advert-serv";
 import {IOTileRPCInterface} from "./iotile-iface-rpc";
 import {IOTileScriptInterface} from "./iotile-iface-script";
 import {IOTileStreamingInterface} from "./iotile-iface-streaming";
@@ -16,6 +17,9 @@ import {AbstractNotificationService} from "../common/notification-service";
 import {catAdapter} from "../config";
 import { MockBleService } from "../mocks/mock-ble-serv";
 import { Category } from "typescript-logging";
+import { DeviceAdapter } from "../common/device-adapter";
+import { CordovaBLEDeviceAdapter } from "../adapter/cordova-ble-adapter";
+import { AdvertisementAccumulator } from "../common/advert-accumulator";
 
 
 /**
@@ -77,7 +81,10 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   connectedDevice: IOTileDevice | null;
 
   state: AdapterState;
-  adParser: IOTileAdvertisementService;
+
+  private deviceAdapter: DeviceAdapter;
+  private advertisements: AdvertisementAccumulator;
+  private platform: Platform;
 
   private connectionHooks: ConnectionHookCallback[];
   private preconnectionHooks: PreconnectionHookCallback[];
@@ -109,8 +116,8 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   
   constructor (Config: any, notificationService: AbstractNotificationService, platform: Platform) {
     super();
-    
-    this.adParser = new IOTileAdvertisementService(Config.BLE.ARCH_BLE_COMPANY_ID, platform);
+
+    this.platform = platform;
     this.config = Config;
     this.catAdapter = catAdapter;
     this.notification = notificationService;
@@ -120,6 +127,12 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     this.lastScanResults = [];
     this.connectedDevice = null;
     this.tracingOpen = false;
+
+    this.deviceAdapter = new CordovaBLEDeviceAdapter(platform);
+    this.advertisements = new AdvertisementAccumulator();
+    this.advertisements.addAdapter(this.deviceAdapter);
+
+    this.deviceAdapter.start();
 
     this.interactive = false;
     this.supportsFastWrites = false;
@@ -336,43 +349,16 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
    */
   public async scan(scanPeriod: number): Promise<IOTileAdvertisement[]> {
     let foundDevices : IOTileAdvertisement[] = [];
-    let uniqueDevices: {[key: string]: boolean} = {};
 
     this.ensureIdle('scanning');
 
     this.state = AdapterState.Scanning;
     this.notify(AdapterEvent.ScanStarted, {});
 
-    let that = this;
-
-    try {
-      window.ble.startScan([], function (peripheral) {
-          try {
-            let device = that.createIOTileAdvertisement(peripheral);
-            //Make sure we only report each device once even on OSes like iOS that
-            //can return multiple scan events per device in a given scan period.
-            if (device.slug in uniqueDevices) {
-              return;
-            }
-
-            uniqueDevices[device.slug] = true;
-            foundDevices.push(device);
-          } catch (err) {
-            if (!(err instanceof Errors.InvalidAdvertisingData)) {
-              that.catAdapter.error("Error Scanning for Devices", new Error(JSON.stringify(err)));
-              throw err;
-            }
-          }
-        });
+    foundDevices = this.advertisements.listDevices();
       
-      await delay(scanPeriod * 1000);
-      await this.stopScan();
-    } catch (err){
-      this.catAdapter.error("Problem calling BLE startScan", new Error(JSON.stringify(err)));
-    } finally {
-      this.state = AdapterState.Idle;
-      this.notify(AdapterEvent.ScanFinished, {"count": foundDevices.length});
-    }
+    this.state = AdapterState.Idle;
+    this.notify(AdapterEvent.ScanFinished, {"count": foundDevices.length});
 
     this.lastScanResults = foundDevices;
     return foundDevices;
@@ -987,10 +973,6 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     this.notification.notify(eventName, args);
   }
 
-  private createIOTileAdvertisement(peripheral: any) : IOTileAdvertisement {
-    return this.adParser.processAdvertisement(peripheral.id, peripheral.rssi, peripheral.advertising);
-  }
-
   /**
    * Wrapper around cordova ble plugin with a Promise based interface
    */
@@ -1036,7 +1018,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
         * connection and the result stored in this.supportsFastWrites.
         */
       if (that.connectedDevice){
-        if (that.supportsFastWrites || that.adParser.platform() === Platform.Android) {
+        if (that.supportsFastWrites || that.platform === Platform.Android) {
           window.ble.writeWithoutResponse(that.connectedDevice.connectionID, IOTileServiceName, that.characteristicNames[char], value, resolveFunction, function(err) {
             clearTimeout(removeHandler);
             reject(new Errors.WriteError(err));

@@ -1,4 +1,4 @@
-import {IOTileAdvertisement} from "./iotile-advert-serv";
+import {IOTileAdvertisement} from "../common/advertisement";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
 import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex} from "iotile-common";
 import * as Errors from "../common/error-space";

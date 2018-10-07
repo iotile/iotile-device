@@ -1,7 +1,7 @@
 /**
  * Helper functions for finding specific mock devices to test with
  */
-import {IOTileAdvertisement} from "../../device/iotile-advert-serv";
+import {IOTileAdvertisement} from "../../common/advertisement";
 
 export function findByDeviceID(id: number, devices: IOTileAdvertisement[]) {
     let i = 0;

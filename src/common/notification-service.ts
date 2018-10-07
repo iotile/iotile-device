@@ -20,7 +20,7 @@ export class EventManager {
     }
 
     public triggerCallback(event: string, args: any){
-        for (let callback in this.callbacks){
+        for (let callback in this.callbacks) {
             this.callbacks[callback](event, args);
         }
     }

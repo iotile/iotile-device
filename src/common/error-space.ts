@@ -75,6 +75,27 @@ export class StreamingError extends BaseError {
     }
 }
 
+export class InterfaceNotImplementedError extends BaseError {
+    constructor(message: string) {
+        // @ts-ignore
+        super('InterfaceNotImplementedError', message);
+    }
+}
+
+export class DeviceAdapterInInvalidStateError extends BaseError {
+    constructor(message: string) {
+        // @ts-ignore
+        super('DeviceAdapterInInvalidStateError', message);
+    }
+}
+
+export class DeviceInInvalidStateError extends BaseError {
+    constructor(message: string) {
+        // @ts-ignore
+        super('DeviceInInvalidStateError', message);
+    }
+}
+
 /**
  * @ngdoc object
  * @name Errors.type:ReportParsingStoppedError

@@ -1,48 +1,21 @@
 import {InvalidAdvertisingData} from "../common/error-space";
 import {deviceIDToSlug} from "iotile-common";
-import {Platform} from "../common/iotile-types";
+import {IOTileAdvertisement, IOTileAdvertisementFlags} from "../common/advertisement";
 import { catAdapter } from "../config";
-
-export interface IOTileAdvertisementFlags {
-  hasData: boolean,
-  otherConnected: boolean,
-  lowVoltage: boolean,
-  robustReports: boolean,
-  fastWrites: boolean
-}
-
-export interface IOTileAdvertisement {
-  batteryVoltage: number,
-  deviceID: number,
-  rssi: number,
-  flags: IOTileAdvertisementFlags,
-  connectionID: any,
-  slug: string
-}
 
 export class IOTileAdvertisementService {
   private companyId: number;
-  private _platform: Platform;
 
-  constructor(companyId: number, platform: Platform) {
+  constructor(companyId: number) {
     this.companyId = companyId;
-    this._platform = platform;
   }
 
   public processAdvertisement(connectionID: any, rssi: number, advert: any): IOTileAdvertisement {
-    if (this._platform === Platform.IOS) {
-      return this.processIOSAdvertisement(connectionID, rssi, advert);
-    } else if (this._platform === Platform.Android) {
-      return this.processAndroidAdvertisement(connectionID, rssi, advert);
-    } else {
-      //FIXME: Currently the only web advertisements we process come from mock
-      //devices that are returned in android format.
+    if (advert instanceof ArrayBuffer) {
       return this.processAndroidAdvertisement(connectionID, rssi, advert);
     }
-  }
 
-  public platform(): Platform {
-    return this._platform;
+    return this.processIOSAdvertisement(connectionID, rssi, advert);  
   }
 
   public processADelements(data: DataView){
@@ -93,7 +66,7 @@ export class IOTileAdvertisementService {
       let manuID = aDElements[255].getUint16(0, true);
 
       if (manuID != this.companyId) {
-        catAdapter.debug("Advertisement has an invalid company ID: " + manuID);
+        catAdapter.trace("Advertisement has an invalid company ID: " + manuID);
         throw new InvalidAdvertisingData("Advertisement has an invalid company ID: " + manuID);
       }
 
@@ -110,7 +83,7 @@ export class IOTileAdvertisementService {
       };
       
     } else {
-      catAdapter.debug("Advertisement has incorrect manufacturer information");
+      catAdapter.trace("Advertisement has incorrect manufacturer information");
       throw new InvalidAdvertisingData("Advertisement has incorrect manufacturer information");
     }
   }
