@@ -3,7 +3,6 @@ import * as Errors from "../common/error-space";
 import {AdapterState, AdapterEvent, IOTileCharacteristic, NotificationCallback, 
   BLEChannel, UserRedirectionInfo, Platform} from "../common/iotile-types";
 import {IOTileAdvertisement} from "../common/advertisement";
-import {IOTileAdvertisementService} from "./iotile-advert-serv";
 import {IOTileRPCInterface} from "./iotile-iface-rpc";
 import {IOTileScriptInterface} from "./iotile-iface-script";
 import {IOTileStreamingInterface} from "./iotile-iface-streaming";
@@ -42,14 +41,6 @@ import { AdvertisementAccumulator } from "../common/advert-accumulator";
 export type ConnectionHookCallback = (device: IOTileDevice, adapter: IOTileAdapter) => Promise<UserRedirectionInfo>;
 export type PreconnectionHookCallback = (device: IOTileAdvertisement, adapter: IOTileAdapter) => Promise<UserRedirectionInfo>;
 
-const ReceiveHeaderCharacteristic = '2001';
-const ReceivePayloadCharacteristic = '2002';
-const SendHeaderCharacteristic = '2003';
-const SendPayloadCharacteristic = '2004';
-const StreamingCharacteristic = '2005';
-const HighspeedDataCharacteristic = '2006';
-const TracingCharacteristic = '2007';
-
 export interface ConnectionOptions {
   noStreamInterface?: boolean,
   noRPCInterface?: boolean,
@@ -72,9 +63,6 @@ export enum Interface {
   Script,
   Tracing
 }
-
-let IOTileServiceName: string = '00002000-3FF7-53BA-E611-132C0FF60F63';
-
 
 export class IOTileAdapter extends AbstractIOTileAdapter {
   notification: AbstractNotificationService;
@@ -1070,42 +1058,6 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
         }
       });
     });
-  }
-
-  private checkFastWriteSupport(peripheral: BLEPeripheral): boolean {
-    let highspeed = this.findCharacteristic(peripheral, IOTileServiceName, HighspeedDataCharacteristic);
-    let header = this.findCharacteristic(peripheral, IOTileServiceName, SendHeaderCharacteristic);
-    let payload = this.findCharacteristic(peripheral, IOTileServiceName, SendPayloadCharacteristic);
-
-    if (highspeed == null || header == null || payload == null)
-      return false;
-
-    return this.checkProperty(highspeed, "WriteWithoutResponse") && this.checkProperty(header, "WriteWithoutResponse") && this.checkProperty(payload, "WriteWithoutResponse");
-  }
-
-  private findCharacteristic(peripheral: BLEPeripheral, service: string, charName: string): BLECharacteristic | null {
-    if (peripheral.characteristics == null || peripheral.characteristics.length == null)
-      return null;
-
-    for (let char of peripheral.characteristics) {
-      if (char.service.toLowerCase() !== service.toLowerCase())
-        continue
-      
-      if (char.characteristic.toLowerCase() === charName.toLowerCase())
-        return char;
-    }
-
-    return null;
-  }
-
-  private checkProperty(char: BLECharacteristic, propToFind: string): boolean {
-    for (let prop of char.properties) {
-      if (prop.toLowerCase() === propToFind.toLowerCase()) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /**

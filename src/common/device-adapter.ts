@@ -1,7 +1,7 @@
 import { BasicNotificationService } from "./notification-service";
 import { IOTileAdvertisement } from "./advertisement";
 import { IOTileReport } from "./iotile-reports";
-import { InterfaceNotImplementedError, DeviceAdapterInInvalidStateError } from "./error-space";
+import { InterfaceNotImplementedError, DeviceAdapterInInvalidStateError, DeviceInInvalidStateError } from "./error-space";
 import { Platform } from "./iotile-types";
 import { Category } from "typescript-logging";
 import { ArgumentError } from "iotile-common";
@@ -24,7 +24,8 @@ export enum DeviceAdapterEvent {
     ReportChunkReceived = "ReportChunkReceived",
     TraceChunkReceived = "TraceChunkReceived",
     AdapterError = "AdapterError",
-    AdapterPermissionError = "AdapterPermissionError"
+    AdapterPermissionError = "AdapterPermissionError",
+    DeviceDisconnected = "DeviceDisconnected"
 }
 
 export enum DeviceAdapterConfig {
@@ -43,6 +44,7 @@ export enum DeviceAdapterState {
 export abstract class DeviceAdapter {
     private     callbacks: BasicNotificationService;
     private     config: {[key: string]: string|number};
+
     protected   type: string;
     protected   name: string;
     protected   id: number;
@@ -135,6 +137,13 @@ export abstract class DeviceAdapter {
             return;
 
         this.callbacks.notify(DeviceAdapterEvent.AdapterError, {userMessage: userMessage, details: details});
+    }
+
+    protected onUnexpectedDisconnection(connectionID: number) {
+        if (this.state === DeviceAdapterState.Stopped)
+            return;
+
+        this.callbacks.notify(DeviceAdapterEvent.DeviceDisconnected, {connectionID: connectionID});
     }
 
     /* 
@@ -251,4 +260,36 @@ export abstract class DeviceAdapter {
     public closeStreamInterface(connectionID: number): Promise<void> {
         return Promise.reject(new InterfaceNotImplementedError(`DeviceAdapter ${this.name} of class ${this.type} does not implement the Stream interface`));
     };
+}
+
+
+export abstract class ConnectionTrackingDeviceAdapter<ConnectionData> extends DeviceAdapter {
+    protected   connections: {[key: number]: ConnectionData};
+
+    constructor(type: string, name: string, platform: Platform, logger: Category) {
+        super(type, name, platform, logger);
+        this.connections = {};
+    }
+
+    protected getConnectionData(connID: number) {
+        if (!(connID in this.connections))
+            throw new DeviceInInvalidStateError(`getConnectionData called for connection ID ${connID} which does not exist.`);
+        
+        return this.connections[connID];
+    }
+
+    protected setConnectionData(connID: number, data: ConnectionData, force?: boolean) {
+        if (connID in this.connections && force !== true)
+            throw new DeviceInInvalidStateError(`setConnectionData called multiple times for connection ID ${connID} and force not specified`);
+        
+        this.connections[connID] = data;
+    }
+
+    protected deleteConnectionData(connID: number, force?:boolean) {
+        if (!(connID in this.connections) && force !== true)
+            throw new DeviceInInvalidStateError(`deleteConnectionDta called and connection ID ${connID} did not exist (force not specified)`);
+        
+        if (connID in this.connections)
+            delete this.connections[connID];
+    }
 }
