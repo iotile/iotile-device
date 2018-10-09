@@ -42,6 +42,16 @@ export interface RemoteBridgeStatus {
   lastError: number
 }
 
+export interface DeviceInfo {
+  uuid: number,
+  stateFlags: number,
+  flags: number,
+  appTag: number,
+  appVersion: string,
+  osTag: number,
+  osVersion: string
+}
+
 /**
  * Proxy class for calling functionality on the script processing and firmware update engine on an IOTile Device
  */
@@ -276,6 +286,33 @@ export class IOTileDevice {
 
       throw err;
     }
+  }
+
+  public async getDeviceInfo(): Promise<DeviceInfo> {
+    let [uuid, stateFlags, flags, res1, res2, res3, osInfo, appInfo]: [number, number, number, number, number, number, number, number] = await this.adapter.typedRPC(8, 0x1008, "", "LLBBBBLL", [], 2.0);
+
+    let osTag = osInfo & ((1 << 20) - 1)
+    let osEncVersion = osInfo >> 20;
+
+    let appTag = appInfo & ((1 << 20) - 1)
+    let appEnvVersion = appInfo >> 20;
+
+    return {
+      uuid: uuid,
+      stateFlags: stateFlags,
+      flags: flags,
+      osTag: osTag,
+      osVersion: this.convertEncodedVersion(osEncVersion),
+      appTag: appTag,
+      appVersion: this.convertEncodedVersion(appEnvVersion)
+    };
+  }
+
+  private convertEncodedVersion(encVersion: number) {
+    let major = (encVersion >> 6) & ((1 << 6) - 1)
+    let minor = (encVersion >> 0) & ((1 << 6) - 1)
+
+    return `${major}.${minor}`;
   }
 
   public async highestUniqueIDRPC() {
