@@ -380,8 +380,9 @@ export class IOTileDevice {
     }
 
     // FIXME: Check that they're done streaming
+    
 
-    // waitReports
+    // get the triggered reports as they come in
     this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
       try {
           let streamName = options.expectedStreamers[report.streamer];
@@ -389,6 +390,8 @@ export class IOTileDevice {
             streamName = "Extra"
           }
 
+          // FIXME: probably need to move this into a separate progressCallback;
+          // which also might be how we check that streaming is finished.
           if (event == 'ReportInvalidEvent') {
             catAdapter.error(`Received ${streamName} report with invalid signature`, new ReportParsingError("Invalid Hash"));
             result.receivedFromAll = false;
@@ -406,7 +409,7 @@ export class IOTileDevice {
       }
     });
 
-    // if all the requested streamers are in reports, we're good
+    // FIXME: check: if all the requested streamers are in results.reports, we're good
 
     if (options.requireAll && !result.receivedFromAll){
       catAdapter.error(`[IOTileDevice] Failed to receive all required streamers`, new Error("Missing Required Report"));
