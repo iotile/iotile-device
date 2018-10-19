@@ -2,7 +2,10 @@ import {IOTileAdvertisement} from "./iotile-advert-serv";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
 import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex} from "iotile-common";
 import * as Errors from "../common/error-space";
-import {RawReading} from "../common/iotile-reports";
+import {RawReading, SignedListReport} from "../common/iotile-reports";
+import {AdapterEvent} from "../common/iotile-types";
+import {ReportParsingError} from "../common/error-space";
+import { catAdapter } from "../config";
 
 export interface BLEConnectionInfo {
   intervalMS: number;
@@ -50,6 +53,17 @@ export interface DeviceInfo {
   appVersion: string,
   osTag: number,
   osVersion: string
+}
+
+export interface ReceiveReportsOptions {
+  expectedStreamers: {[key: number]: string},   //The indices of the streamers that we expect to receive reports from as well as the names that should be used in the ProgressNotifier
+  requireAll?: boolean,           //Whether an exception should be received if there is no data on one or more of the streamers
+}
+
+export interface ReceiveReportsResult {
+  reports: SignedListReport[],    // The actual SignedListReport objects received (only those from the streamers in expectedStreamers)
+  receivedFromAll: boolean,       // Whether a report was received from every expected streamer
+  receivedExtra: boolean,         // Whether extra SignedListReports were received from other streamers during this function    
 }
 
 /**
@@ -339,6 +353,67 @@ export class IOTileDevice {
   public async triggerStreamer(streamer: number) {
     let [error] = await this.adapter.typedRPC(8, 0x2010, "H", "L", [streamer], 1.0);
     return error;
+  }
+
+  public async receiveReports(options: ReceiveReportsOptions, progress?: ProgressNotifier): Promise<ReceiveReportsResult> {
+    let result: ReceiveReportsResult = {reports: [], receivedFromAll: true, receivedExtra: false};
+
+    if (!progress){
+      progress = new ProgressNotifier();
+    }
+
+    let now = new Date();
+    for (let key in Object.keys(options.expectedStreamers)){
+      let info = await this.queryStreamerRPC(+key);
+      let streamName = options.expectedStreamers[key];
+
+      // Check if streamer has been triggered yet
+      if (info.lastAttemptTime < now.getSeconds()) {
+        let err = await this.triggerStreamer(+key);
+        
+        // if error != no new reports
+        if (err && (err != 0x8003801f)){
+          catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], err));
+          result.receivedFromAll = false;
+        }
+      }
+    }
+
+    // FIXME: Check that they're done streaming
+
+    // waitReports
+    this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
+      try {
+          let streamName = options.expectedStreamers[report.streamer];
+          if (!streamName){
+            streamName = "Extra"
+          }
+
+          if (event == 'ReportInvalidEvent') {
+            catAdapter.error(`Received ${streamName} report with invalid signature`, new ReportParsingError("Invalid Hash"));
+            result.receivedFromAll = false;
+            throw new ReportParsingError(`Received ${streamName} report with invalid signature`);
+          }
+
+          // is this a report we care about?
+          if (report.streamer in options.expectedStreamers){
+            result.reports.push(report);
+          } else {
+            result.receivedExtra = true;
+          }
+      } catch (err) {
+        catAdapter.error(`[IOTileDevice] Could not process report: ${options.expectedStreamers[report.streamer]}`, new Error(err));
+      }
+    });
+
+    // if all the requested streamers are in reports, we're good
+
+    if (options.requireAll && !result.receivedFromAll){
+      catAdapter.error(`[IOTileDevice] Failed to receive all required streamers`, new Error("Missing Required Report"));
+      throw new ReportParsingError(`Missing required report`);
+    } 
+
+    return result;
   }
 
   public remoteBridge(): RemoteBridge {
