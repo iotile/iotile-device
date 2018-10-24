@@ -37,16 +37,12 @@ export class ShockInfo {
 }
 
 export class POD1M {
-    private device: IOTileDevice;
-    private adapter: IOTileAdapter;
+    public device: IOTileDevice;
+    public adapter: IOTileAdapter;
 
     constructor(device: IOTileDevice, adapter: IOTileAdapter) {
         this.device = device;
         this.adapter = adapter;
-    }
-
-    public getAccelermeterStatus(){
-
     }
 
     public async getShockInfo(shock: number): Promise<ShockInfo> {
