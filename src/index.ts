@@ -4,6 +4,7 @@ export {IOTileDevice, BLEConnectionInfo, StreamerInfo, RemoteBridge, MatchBy,
 export {IOTileAdapter} from "./device/iotile-serv";
 export {RPCError, RPCData, IOTileRPCInterface} from "./device/iotile-iface-rpc";
 export {IOTileAdvertisementService, IOTileAdvertisement, IOTileAdvertisementFlags} from "./device/iotile-advert-serv";
+export * from "./device/pod-1m";
 export * from "./common/iotile-reports";
 export {AdapterEvent, UserRedirectionInfo, AdapterState, Platform} from "./common/iotile-types";
 export {ReportParserEvent, ReportProgressEvent, ReportParser, ReceiveStatus} from "./device/iotile-report-parser";
