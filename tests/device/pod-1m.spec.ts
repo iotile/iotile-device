@@ -15,14 +15,15 @@ describe('module: iotile.device, POD-1MDevice', function () {
     });
 
     it('should get shock information from the device', async function() {
-
-        spyOn(pod1m.adapter, 'typedRPC').and.returnValue([1129, 6, -10186, 22172, 5166]);
+        // @ts-ignore
+        pod1m.adapter.typedRPC = function(){};
+        spyOn(<IOTileAdapter>pod1m.adapter, 'typedRPC').and.returnValue([1129, 6, -10186, 22172, 5166]);
 
         let shockInfo = await pod1m.getShockInfo(1);
 
         expect(shockInfo).toBeDefined();
         expect(shockInfo.peakVal).toEqual(13.818000000000001);
-        expect(shockInfo.axis).toEqual(1);
+        expect(shockInfo.axis).toEqual("Y");
         expect(shockInfo.duration).toEqual(6);
         expect(shockInfo.dVx).toEqual(-0.155426025390625);
         expect(shockInfo.dVy).toEqual(0.33831787109375);
