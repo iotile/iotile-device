@@ -12,11 +12,11 @@ describe('module: iotile.device, POD-1MDevice', function () {
         let advert = {};
         device = new IOTileDevice(<IOTileAdapter>adapter, <IOTileAdvertisement>advert);
         pod1m = new POD1M(device, <IOTileAdapter>adapter);
+        // @ts-ignore
+        pod1m.adapter.typedRPC = function(){};
     });
 
     it('should get shock information from the device', async function() {
-        // @ts-ignore
-        pod1m.adapter.typedRPC = function(){};
         spyOn(<IOTileAdapter>pod1m.adapter, 'typedRPC').and.returnValue([1129, 6, -10186, 22172, 5166]);
 
         let shockInfo = await pod1m.getShockInfo(1);
