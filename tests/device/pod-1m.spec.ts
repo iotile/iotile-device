@@ -30,4 +30,16 @@ describe('module: iotile.device, POD-1MDevice', function () {
         expect(shockInfo.dVz).toEqual(0.078826904296875);
         expect(shockInfo.largestDeltaV).toEqual(0.33831787109375 * 39.3701);
     });
+
+    it('should get accelerometer status information from the device', async function() {
+        spyOn(<IOTileAdapter>pod1m.adapter, 'typedRPC').and.returnValue([0, 4, 1, 0, 0, 7, 65532, 1, 26, 0, 0]);
+
+        let status = await pod1m.getAccelerometerStatus();
+
+        expect(status).toBeDefined();
+        expect(status.recording).toBeTruthy();
+        expect(status.settled).toBeTruthy();
+        expect(status.streaming).toBeFalsy();
+        expect(status.tile_state).toEqual("capturing");
+    });
 });

@@ -1,5 +1,7 @@
 import { IOTileDevice } from "./iotile-device";
 import { IOTileAdapter } from "./iotile-serv";
+import { catAdapter } from "../config";
+import { ConnectionError } from "../common/error-space";
 
 export class ShockInfo {
     public peakVal: number;
@@ -52,6 +54,31 @@ export class POD1M {
         let peakAxis = peak & 0b11;
 
         return new ShockInfo(peakVal, peakAxis, duration, dVx, dVy, dVz);
+    }
+
+    public async getAccelerometerStatus(){
+        try {
+            // FIXME: update signature to "LLBxBB3h2x" when we update packArrayBuffer to support x, h
+            let [last_err, shock_counter, tile_state, _unused, state, flags, x, y, z, _unused2, _unused3] = await this.adapter.typedRPC(12, 0x8006, "", "LLBBBBHHHBB", [], 3.0);
+
+            let TILE_STATE_TABLE: {[key: number]: string} = {
+                0: "initializing",
+                1: "capturing",
+                2: "streaming"
+            }
+
+            let status = {
+                'tile_state': TILE_STATE_TABLE[tile_state],
+                'recording': !!(flags & (1 << 0)),
+                'settled': !!(flags & (1 << 2)),
+                'streaming': !!(flags & (1 << 4)),
+            }
+
+            return status
+        } catch (err){
+            catAdapter.error(`Couldn't get accelerometer tile status: `, new Error(err));
+            throw new ConnectionError("Lost connection to accelerometer tile");
+        } 
     }
 
 }
