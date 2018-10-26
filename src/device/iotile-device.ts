@@ -52,6 +52,20 @@ export interface DeviceInfo {
   osVersion: string
 }
 
+export interface DeviceUptime {
+  isUTC: false;
+  isSynchronized: false;
+  currentTime: number;
+}
+
+export interface DeviceUTCTime {
+  isUTC: true;
+  isSynchronized: boolean;
+  currentTime: Date;
+}
+
+export type DeviceTime = DeviceUptime | DeviceUTCTime;
+
 /**
  * Proxy class for calling functionality on the script processing and firmware update engine on an IOTile Device
  */
@@ -347,6 +361,49 @@ export class IOTileDevice {
 
   public config(): Config {
     return new Config(this.adapter);
+  }
+
+  public async currentTime(synchronizationSlopSeconds: number = 60): Promise<DeviceTime> {
+    let deviceTime: DeviceTime;
+    let currentTime = new Date();
+    let synched = false;
+    let [timestamp] = await this.adapter.typedRPC(8, 0x1001, "", "L", []);
+
+    if (!!(timestamp & (1 << 31)) === true){
+      let secondsSince2000 = timestamp & ((1 << 31) - 1);
+
+      //If UTC is set and decoded Date is within synchronizationSlopSeconds of our current time
+      //sets isSynchronized to true.
+      if (Math.abs(currentTime.getUTCSeconds() - secondsSince2000) <= synchronizationSlopSeconds){
+        synched = true;
+      }
+
+      //Returns a DeviceUTCTime if UTC is set
+      deviceTime = {
+        isUTC: true,
+        isSynchronized: synched,
+        currentTime: timestamp
+      };
+    } else {
+      //Returns a DeviceUptime if UTC is not set
+      deviceTime = {
+          isUTC: false,
+          isSynchronized: false,
+          currentTime: timestamp
+        };
+    }
+    
+    return deviceTime;
+  }
+
+  // CHECKME
+  public async synchronizeTime(forcedTime?: Date): Promise<void> {
+    let time = new Date();
+    let secondsSince2000 = time.getUTCSeconds();
+    if (forcedTime){
+      secondsSince2000 = forcedTime.getUTCSeconds();
+    }
+    await this.adapter.typedRPC(8, 0xAB07, "L", "", [secondsSince2000]);
   }
 
   public async downloadStream(streamName: string, progress?: any): Promise<RawReading[]> {
