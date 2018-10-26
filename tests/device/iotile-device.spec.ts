@@ -9,37 +9,13 @@ import { BasicNotificationService } from "../../src/common/notification-service"
 import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 
 describe('module: iotile.device, IOTileDevice', function () {
-    let Config;
-    let notification = new BasicNotificationService();
-    let adapter: IOTileAdapter;
-    let advert: IOTileAdvertisement;
     let device: IOTileDevice;
+    let adapter;
+    let advert;
 
     beforeEach(function () {
-        let config = {
-            BUILD: {
-                VERSION: "1.1.0"
-            },
-    
-            ENV: {
-                DB_NAME: "test"
-            }
-        }
-        
-        Config = config;
-    
-        setupMockBLE(config);
-        spyOn(catService, 'error').and.returnValue('');
-        spyOn(catAdapter, 'info').and.returnValue('');
-        spyOn(catAdapter, 'error').and.returnValue('');
-        spyOn(catAdapter, 'debug').and.returnValue('');
-        spyOn(catBLEOptimizer, 'info').and.returnValue('');
-        spyOn(catBLEOptimizer, 'error').and.returnValue('');
-        spyOn(catBLEOptimizer, 'warn').and.returnValue('');
-
-        adapter = new IOTileAdapter(config, notification, Platform.Android);
-        // TODO
-        //advert = ;
+        adapter = {};
+        advert = {};
 
         device = new IOTileDevice(adapter, advert);
     });
