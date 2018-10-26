@@ -3,6 +3,7 @@ import {AbstractIOTileAdapter} from "./iotile-base-types";
 import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex} from "iotile-common";
 import * as Errors from "../common/error-space";
 import {RawReading} from "../common/iotile-reports";
+import { catAdapter } from "../config";
 
 export interface BLEConnectionInfo {
   intervalMS: number;
@@ -214,7 +215,7 @@ export class IOTileDevice {
   public slug: string;
   public connectionID: any;
 
-  private adapter: AbstractIOTileAdapter;
+  public adapter: AbstractIOTileAdapter;
   private downloadLock: any;
 
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
@@ -368,13 +369,17 @@ export class IOTileDevice {
     let currentTime = new Date();
     let synched = false;
     let [timestamp] = await this.adapter.typedRPC(8, 0x1001, "", "L", []);
+    catAdapter.info(`Timestamp is: ${timestamp}`);
 
     if (!!(timestamp & (1 << 31)) === true){
       let secondsSince2000 = timestamp & ((1 << 31) - 1);
+      catAdapter.info(`Seconds since 2000: ${secondsSince2000}`);
+      let convertedSeconds = (Date.UTC(2000, 1, 1) / 1000) + secondsSince2000;
+      let convertedTime = new Date(convertedSeconds);
 
       //If UTC is set and decoded Date is within synchronizationSlopSeconds of our current time
       //sets isSynchronized to true.
-      if (Math.abs(currentTime.getUTCSeconds() - secondsSince2000) <= synchronizationSlopSeconds){
+      if (Math.abs(currentTime.getUTCSeconds() - convertedSeconds) <= synchronizationSlopSeconds){
         synched = true;
       }
 
@@ -382,7 +387,7 @@ export class IOTileDevice {
       deviceTime = {
         isUTC: true,
         isSynchronized: synched,
-        currentTime: timestamp
+        currentTime: convertedTime
       };
     } else {
       //Returns a DeviceUptime if UTC is not set
@@ -396,13 +401,11 @@ export class IOTileDevice {
     return deviceTime;
   }
 
-  // CHECKME
   public async synchronizeTime(forcedTime?: Date): Promise<void> {
-    let time = new Date();
-    let secondsSince2000 = time.getUTCSeconds();
-    if (forcedTime){
-      secondsSince2000 = forcedTime.getUTCSeconds();
+    if (!forcedTime){
+      forcedTime = new Date();
     }
+    let secondsSince2000 = forcedTime.getUTCSeconds() - (Date.UTC(2000, 1, 1) / 1000);
     await this.adapter.typedRPC(8, 0xAB07, "L", "", [secondsSince2000]);
   }
 
