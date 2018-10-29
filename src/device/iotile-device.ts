@@ -215,7 +215,7 @@ export class IOTileDevice {
   public slug: string;
   public connectionID: any;
 
-  private adapter: AbstractIOTileAdapter;
+  public adapter: AbstractIOTileAdapter;
   private downloadLock: any;
 
   private reportStartedHandler: any;
