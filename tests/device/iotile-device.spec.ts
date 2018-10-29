@@ -27,8 +27,8 @@ describe('module: iotile.device, IOTileDevice', function () {
 
         spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([]);
         // force set time to 59 seconds after default device time (1/1/2000)
-        let forcedTime = new Date(2000, 1, 1, 0, 1, 5);
-        await device.synchronizeTime(forcedTime);
+        let forcedTime = Date.UTC(2000, 1, 1, 0, 1, 5);
+        await device.synchronizeTime(new Date(forcedTime));
 
         spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([]);
         let newTime = await device.currentTime();
@@ -52,7 +52,7 @@ describe('module: iotile.device, IOTileDevice', function () {
     });
 
     it('[RTC] should correctly get unsynchronized UTC device time', async function() {
-        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([]);
+        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([2741389403]);
 
         let time = await device.currentTime();
 
