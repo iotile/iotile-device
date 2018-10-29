@@ -1,11 +1,12 @@
 import {IOTileAdvertisement} from "./iotile-advert-serv";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
-import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex} from "iotile-common";
+import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex, delay} from "iotile-common";
 import * as Errors from "../common/error-space";
-import {RawReading, SignedListReport} from "../common/iotile-reports";
+import {RawReading, SignedListReport, IOTileReport} from "../common/iotile-reports";
 import {AdapterEvent} from "../common/iotile-types";
 import {ReportParsingError} from "../common/error-space";
 import { catAdapter } from "../config";
+import { ReportParserEvent } from "./iotile-report-parser";
 
 export interface BLEConnectionInfo {
   intervalMS: number;
@@ -217,6 +218,12 @@ export class IOTileDevice {
   private adapter: AbstractIOTileAdapter;
   private downloadLock: any;
 
+  private reportStartedHandler: any;
+  private reportStalledHandler: any;
+  private reportProgressHandler: any;
+  private reportFinishedHandler: any;
+  private reportDisconnectedHandler: any;
+
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
     this.advertisement = advData;
     this.deviceID = advData.deviceID;
@@ -225,6 +232,12 @@ export class IOTileDevice {
     this.slug = deviceIDToSlug(this.deviceID);
     this.connectionID = advData.connectionID;
     this.downloadLock = new Mutex;
+
+    this.reportStartedHandler = null;
+    this.reportStalledHandler = null;
+    this.reportProgressHandler = null;
+    this.reportFinishedHandler = null;
+    this.reportDisconnectedHandler = null;
   }
 
   public async acknowledgeStreamerRPC(streamer: number, highestID: number, force: boolean) {
@@ -355,6 +368,120 @@ export class IOTileDevice {
     return error;
   }
 
+  private async waitReports(notifier: ProgressNotifier): Promise<number> {
+    let that = this;
+
+    let isDoneReceiving: boolean = true;
+    let reportInProgress: boolean = false;
+    let reportPercentage: number = 0;
+    let reportType: string | null = null;
+    let reportCount: number = 0;
+    let invalidReports: number = 0;
+
+    let progressCallback = function (eventName: string, event: ReportParserEvent) {
+        switch(event.reportIndex){
+            case (0):
+            reportType = "Environmental";
+            break;
+
+            case (1):
+            reportType = "System";
+            break;
+
+            case (2):
+            reportType = "Trip";
+            break;
+
+            default:
+            throw new Error(`Unknown report type: report index is ${event.reportIndex}`);
+        }
+
+        if (event.name == 'ReportInvalidEvent') {
+            invalidReports += 1;
+            throw new ReportParsingError(`Received ${reportType} report with invalid signature`);
+        }
+
+        if (event.finishedPercentage === 100) {
+            reportInProgress = false;
+            reportPercentage = event.finishedPercentage;
+            reportCount += 1;
+            notifier.finishOne();
+            notifier.updateDescription(`Successfully received ${reportType} report`);        
+        } else if (event.name == 'ReportStalledEvent') {
+            throw new Errors.ReportParsingStoppedError(`Report parsing stalled on ${reportType} report`);
+        } else {
+            reportInProgress = true;
+            reportPercentage = event.finishedPercentage;
+        }
+
+        if (reportCount == 3) { // FIXME: What other condition signals we're done receiving?
+            isDoneReceiving = true;
+        } else {
+            isDoneReceiving = false;
+        }
+    }
+
+    let disconnectCallback = function (eventName: string, event: ReportParserEvent) {
+        reportInProgress = false;
+        reportPercentage = 0;
+        reportType = null;
+    }
+
+    this.reportStartedHandler = this.adapter.subscribe(AdapterEvent.RobustReportStarted, progressCallback);
+    this.reportStalledHandler = this.adapter.subscribe(AdapterEvent.RobustReportStalled, progressCallback);
+    this.reportProgressHandler =  this.adapter.subscribe(AdapterEvent.RobustReportProgress, progressCallback);
+    this.reportFinishedHandler = this.adapter.subscribe(AdapterEvent.RobustReportFinished, progressCallback);
+    this.reportDisconnectedHandler = this.adapter.subscribe(AdapterEvent.Disconnected, disconnectCallback);
+    
+    do {
+        await delay(500);
+
+        if (reportInProgress === false) {
+            await delay(100);
+            if (reportInProgress === false) {
+                break;
+            }
+        } else {
+            notifier.updateDescription("Receiving " + reportType + " Data: " + reportPercentage + "% Done");
+        }
+    } while (!isDoneReceiving);
+
+    this.reportCleanup();
+
+    if (invalidReports > 0){
+        reportCount = -1;
+    }      
+
+    return reportCount;
+  }
+
+  private reportCleanup() {
+    if (this.reportStartedHandler) {
+        this.reportStartedHandler();
+        this.reportStartedHandler = null;
+    }
+
+    if (this.reportStalledHandler) {
+        this.reportStalledHandler();
+        this.reportStalledHandler = null;
+    }
+
+    if (this.reportProgressHandler) {
+        this.reportProgressHandler();
+        this.reportProgressHandler = null;
+    }
+
+    if (this.reportFinishedHandler) {
+        this.reportFinishedHandler();
+        this.reportFinishedHandler = null;
+    }
+
+    if (this.reportDisconnectedHandler) {
+        this.reportDisconnectedHandler();
+        this.reportDisconnectedHandler = null;
+    }
+  }
+
   public async receiveReports(options: ReceiveReportsOptions, progress?: ProgressNotifier): Promise<ReceiveReportsResult> {
     let result: ReceiveReportsResult = {reports: [], receivedFromAll: true, receivedExtra: false};
 
@@ -368,7 +495,7 @@ export class IOTileDevice {
       let streamName = options.expectedStreamers[key];
 
       // Check if streamer has been triggered yet
-      if (info.lastAttemptTime < now.getSeconds()) {
+      if (info.lastAttemptTime < (now.valueOf()/ 1000)) {
         let err = await this.triggerStreamer(+key);
         
         // if error != no new reports
@@ -379,8 +506,7 @@ export class IOTileDevice {
       }
     }
 
-    // FIXME: Check that they're done streaming
-    
+    let receivedNames: number[] = [];
 
     // get the triggered reports as they come in
     this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
@@ -390,17 +516,10 @@ export class IOTileDevice {
             streamName = "Extra"
           }
 
-          // FIXME: probably need to move this into a separate progressCallback;
-          // which also might be how we check that streaming is finished.
-          if (event == 'ReportInvalidEvent') {
-            catAdapter.error(`Received ${streamName} report with invalid signature`, new ReportParsingError("Invalid Hash"));
-            result.receivedFromAll = false;
-            throw new ReportParsingError(`Received ${streamName} report with invalid signature`);
-          }
-
           // is this a report we care about?
           if (report.streamer in options.expectedStreamers){
             result.reports.push(report);
+            receivedNames.push(report.streamer);
           } else {
             result.receivedExtra = true;
           }
@@ -409,7 +528,13 @@ export class IOTileDevice {
       }
     });
 
-    // FIXME: check: if all the requested streamers are in results.reports, we're good
+    let triggeredReports = await this.waitReports(progress);
+
+    for (let key of Object.keys(options.expectedStreamers)){
+      if (!(+key in receivedNames)){
+        result.receivedFromAll = false;
+      }
+    }
 
     if (options.requireAll && !result.receivedFromAll){
       catAdapter.error(`[IOTileDevice] Failed to receive all required streamers`, new Error("Missing Required Report"));
