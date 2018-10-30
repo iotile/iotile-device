@@ -413,12 +413,6 @@ export class IOTileDevice {
             reportInProgress = true;
             reportPercentage = event.finishedPercentage;
         }
-
-        if (reportCount == 3) { // FIXME: What other condition signals we're done receiving?
-            isDoneReceiving = true;
-        } else {
-            isDoneReceiving = false;
-        }
     }
 
     let disconnectCallback = function (eventName: string, event: ReportParserEvent) {
@@ -535,6 +529,9 @@ export class IOTileDevice {
     });
 
     let triggeredReports = await this.waitReports(progress);
+    if (triggeredReports < 0){
+      progress.fatalError("Problem receiving reports: Invalid Data, please reconnect and try again");
+    }
     progress.finishOne();
 
     for (let key of Object.keys(options.expectedStreamers)){
