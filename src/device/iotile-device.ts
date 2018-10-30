@@ -500,13 +500,16 @@ export class IOTileDevice {
         
         // if error != no new reports
         if (err && (err != 0x8003801f)){
-          catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], err));
+          catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], JSON.stringify(err)));
           result.receivedFromAll = false;
         }
       }
     }
 
+    progress.startOne('Receiving Summary Streams', 1);
     let receivedNames: number[] = [];
+
+    let subNotifier = progress.startOne(`Downloading Device Reports`, Object.keys(options.expectedStreamers).length);
 
     // get the triggered reports as they come in
     this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
@@ -520,6 +523,9 @@ export class IOTileDevice {
           if (report.streamer in options.expectedStreamers){
             result.reports.push(report);
             receivedNames.push(report.streamer);
+            if (subNotifier){
+              subNotifier.finishOne();
+            }
           } else {
             result.receivedExtra = true;
           }
@@ -529,6 +535,7 @@ export class IOTileDevice {
     });
 
     let triggeredReports = await this.waitReports(progress);
+    progress.finishOne();
 
     for (let key of Object.keys(options.expectedStreamers)){
       if (!(+key in receivedNames)){
@@ -538,6 +545,7 @@ export class IOTileDevice {
 
     if (options.requireAll && !result.receivedFromAll){
       catAdapter.error(`[IOTileDevice] Failed to receive all required streamers`, new Error("Missing Required Report"));
+      progress.fatalError(`Error receiving data. Reconnect to device and try upload again.`);
       throw new ReportParsingError(`Missing required report`);
     } 
 

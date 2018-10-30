@@ -26,9 +26,9 @@ describe('module: iotile.device, IOTileDevice', function () {
     it('should correctly receive reports from specified streamers', async function() {
         expect(true).toBeTruthy();
 
-        // let options: ReceiveReportsOptions;
-        // options = { expectedStreamers: {0:'Environmental', 1:'System', 2:'Trip'},
-        //                           requireAll: true };
+        let options: ReceiveReportsOptions;
+        options = { expectedStreamers: {0:'Environmental', 1:'System', 2:'Trip'},
+                                  requireAll: true };
 
         // // CHECKME: streamer names for above
         // let report1 = createSequentialReport(1, 'output 1', 100, 0);
