@@ -483,21 +483,23 @@ export class IOTileDevice {
       progress = new ProgressNotifier();
     }
 
-    let now = new Date();
+    let triggeredOne = false;
+
     for (let key in Object.keys(options.expectedStreamers)){
       let info = await this.queryStreamerRPC(+key);
       let streamName = options.expectedStreamers[key];
 
       // Check if streamer has been triggered yet
-      if (info.lastAttemptTime < (now.valueOf()/ 1000)) {
-        let err = await this.triggerStreamer(+key);
+      if (!triggeredOne || info.commStatus === 0) {
+          let err = await this.triggerStreamer(+key);
         
-        // if error != no new reports
-        if (err && (err != 0x8003801f)){
-          catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], JSON.stringify(err)));
-          result.receivedFromAll = false;
+          // if error != no new reports
+          if (err && (err != 0x8003801f)){
+            catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], JSON.stringify(err)));
+            result.receivedFromAll = false;
+          }
+          triggeredOne = true;
         }
-      }
     }
 
     progress.startOne('Receiving Summary Streams', 1);
@@ -514,7 +516,7 @@ export class IOTileDevice {
           }
 
           // is this a report we care about?
-          if (report.streamer in options.expectedStreamers){
+          if (report.streamer in options.expectedStreamers && !(report.streamer in receivedNames)){
             result.reports.push(report);
             receivedNames.push(report.streamer);
             if (subNotifier){
