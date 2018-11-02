@@ -139,16 +139,15 @@ export class Config {
     }
   }
 
-  // FIXME: clean up 0 B's to x's when x supported
   private async startEntry(id: number, target: string) {
     let args: ArrayBuffer;
 
     if (target == 'controller'){
-      args = packArrayBuffer("HBBBBBBBB", id, 0, 0,0,0,0,0,0, MatchBy.MatchController);
+      args = packArrayBuffer("H7xB", id, MatchBy.MatchController);
     } else if (target.includes('slot')){
       let slot = target.split(" ")[1];
       if (+slot >= 0 && +slot <= 255){
-        args = packArrayBuffer("HBBBBBBBB", id, slot, 0,0,0,0,0,0, MatchBy.MatchBySlot);
+        args = packArrayBuffer("HB6xB", id, slot, MatchBy.MatchBySlot);
       } else {
         throw new ArgumentError("Slot number must be between 0 and 255");
       }
