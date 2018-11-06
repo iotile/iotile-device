@@ -615,7 +615,7 @@ export class IOTileDevice {
     let secondsSince2000 = Math.ceil((forcedTime.valueOf() - millisecondsAt2000) /1000);
     catAdapter.info(`Sending time to RTC: ${secondsSince2000}`);
 
-    await this.adapter.typedRPC(8, 0xAB07, "L", "8x", [secondsSince2000]);
+    await this.adapter.errorHandlingRPC(8, 0x1010, "L", "L", [secondsSince2000]);
     return secondsSince2000;
   }
 
