@@ -56,6 +56,20 @@ export interface DeviceInfo {
   osVersion: string
 }
 
+export interface DeviceUptime {
+  isUTC: false;
+  isSynchronized: false;
+  currentTime: number;
+}
+
+export interface DeviceUTCTime {
+  isUTC: true;
+  isSynchronized: boolean;
+  currentTime: Date;
+}
+
+export type DeviceTime = DeviceUptime | DeviceUTCTime;
+
 export interface ReceiveReportsOptions {
   expectedStreamers: {[key: number]: string},   //The indices of the streamers that we expect to receive reports from as well as the names that should be used in the ProgressNotifier
   requireAll?: boolean,           //Whether an exception should be received if there is no data on one or more of the streamers
@@ -139,16 +153,15 @@ export class Config {
     }
   }
 
-  // FIXME: clean up 0 B's to x's when x supported
   private async startEntry(id: number, target: string) {
     let args: ArrayBuffer;
 
     if (target == 'controller'){
-      args = packArrayBuffer("HBBBBBBBB", id, 0, 0,0,0,0,0,0, MatchBy.MatchController);
+      args = packArrayBuffer("H7xB", id, MatchBy.MatchController);
     } else if (target.includes('slot')){
       let slot = target.split(" ")[1];
       if (+slot >= 0 && +slot <= 255){
-        args = packArrayBuffer("HBBBBBBBB", id, slot, 0,0,0,0,0,0, MatchBy.MatchBySlot);
+        args = packArrayBuffer("HB6xB", id, slot, MatchBy.MatchBySlot);
       } else {
         throw new ArgumentError("Slot number must be between 0 and 255");
       }
@@ -557,6 +570,53 @@ export class IOTileDevice {
 
   public config(): Config {
     return new Config(this.adapter);
+  }
+
+  public async currentTime(synchronizationSlopSeconds: number = 60): Promise<DeviceTime> {
+    let deviceTime: DeviceTime;
+    let [timestamp] = await this.adapter.typedRPC(8, 0x1001, "", "L", []);
+    catAdapter.info(`Timestamp is: ${timestamp}`);
+
+    if (!!(timestamp & (1 << 31)) === true){
+      let secondsSince2000 = timestamp & ((1 << 31) - 1);
+      catAdapter.info(`Seconds since 2000: ${secondsSince2000}`);
+      let convertedSeconds = (Date.UTC(2000, 0, 1) / 1000) + secondsSince2000;
+      let convertedTime = new Date(convertedSeconds * 1000);
+      let currentSeconds = Date.now() / 1000;
+      
+      //If UTC is set and decoded Date is within synchronizationSlopSeconds of our current time
+      //sets isSynchronized to true.
+      let synched = (Math.abs(convertedSeconds - currentSeconds) <= synchronizationSlopSeconds);
+
+      //Returns a DeviceUTCTime if UTC is set
+      deviceTime = {
+        isUTC: true,
+        isSynchronized: synched,
+        currentTime: convertedTime
+      };
+    } else {
+      //Returns a DeviceUptime if UTC is not set
+      deviceTime = {
+          isUTC: false,
+          isSynchronized: false,
+          currentTime: timestamp
+        };
+    }
+    
+    return deviceTime;
+  }
+
+  public async synchronizeTime(forcedTime?: Date): Promise<number> {
+    if (!forcedTime){
+      forcedTime = new Date();
+    }
+
+    let millisecondsAt2000 = Date.UTC(2000, 0, 1);
+    let secondsSince2000 = Math.ceil((forcedTime.valueOf() - millisecondsAt2000) /1000);
+    catAdapter.info(`Sending time to RTC: ${secondsSince2000}`);
+
+    await this.adapter.errorHandlingRPC(8, 0x1010, "L", "L", [secondsSince2000]);
+    return secondsSince2000;
   }
 
   public async downloadStream(streamName: string, progress?: any): Promise<RawReading[]> {

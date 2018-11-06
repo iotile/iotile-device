@@ -1,17 +1,11 @@
-import {IOTileDevice, StreamerInfo, ReceiveReportsOptions, ReceiveReportsResult, Config} 
-    from "../../src/device/iotile-device";
-import {IOTileAdvertisement}  from "../../src/device/iotile-advert-serv";
+import {IOTileDevice} from "../../src/device/iotile-device";
 import {IOTileAdapter}  from "../../src/device/iotile-serv";
-import  {Platform, AdapterEvent, IOTileCharacteristic} from "../../src/common/iotile-types";
-import {catAdapter, catBLEOptimizer, catService} from "../../src/config";
-import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
-import { BasicNotificationService } from "../../src/common/notification-service";
-import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 
 describe('module: iotile.device, IOTileDevice', function () {
     let device: IOTileDevice;
     let adapter;
     let advert;
+    let secondsAt2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
 
     beforeEach(function () {
         adapter = {};
@@ -22,26 +16,49 @@ describe('module: iotile.device, IOTileDevice', function () {
         device.adapter.typedRPC = function(){};
     });
 
-    // TODO
-    it('should correctly receive reports from specified streamers', async function() {
-        expect(true).toBeTruthy();
+    it('[RTC] should correctly synchronize device time', async function() {    
+        let forcedTime = Date.now();
+        let forcedTimeDiff = (forcedTime / 1000) - secondsAt2000;
+        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([forcedTimeDiff]);
+        let sentTime = await device.synchronizeTime(new Date(forcedTime));
+        expect(sentTime).toEqual(Math.round(forcedTimeDiff));
+    });
 
-        let options: ReceiveReportsOptions;
-        options = { expectedStreamers: {0:'Environmental', 1:'System', 2:'Trip'},
-                                  requireAll: true };
+    it('[RTC] should correctly get synchronized UTC device time', async function() {
+        let now = new Date();
+        let nowSeconds = Math.round(now.valueOf() /1000);
+        let nowSince2000 = nowSeconds - secondsAt2000;
+    
+        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([nowSince2000 | (1 << 31)]);      
 
-        // // CHECKME: streamer names for above
-        // let report1 = createSequentialReport(1, 'output 1', 100, 0);
-        // let report2 = createSequentialReport(1, 'output 2', 100, 1);
-        // let report3 = createSequentialReport(1, 'output 3', 100, 2);
-        
-        // // ugh also you'll need to make the relevant rpc spies
+        let time = await device.currentTime();
 
-        // let results = await device.receiveReports(options);
-        // expect(results.reports).toBeDefined();
-        // expect(results.reports.length).toEqual(3);
-        // expect(results.receivedFromAll).toBeTruthy();
-        // expect(results.receivedExtra).toBeFalsy();
+        expect(time).toBeDefined();
+        expect(time.currentTime).toEqual(new Date(nowSeconds * 1000));
+        expect(time.isSynchronized).toBe(true);
+        expect(time.isUTC).toBe(true);
+    });
 
+    it('[RTC] should correctly get unsynchronized UTC device time', async function() {
+        let then = Date.UTC(2018, 0, 1) / 1000;
+        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([(then - secondsAt2000) | (1 << 31)]);
+
+        let time = await device.currentTime();
+
+        expect(time).toBeDefined();
+        expect(time.currentTime).toEqual(new Date(then * 1000));
+        expect(time.isSynchronized).toBe(false);
+        expect(time.isUTC).toBe(true);
+    });
+
+    it('[RTC] should correctly get non-UTC device time', async function() {
+        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([1377748]);
+
+        let time = await device.currentTime();
+
+        expect(time).toBeDefined();
+        expect(time.currentTime).toEqual(1377748);
+        expect(time.isSynchronized).toBe(false);
+        expect(time.isUTC).toBe(false);
     });
 });
