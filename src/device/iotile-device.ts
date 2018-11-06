@@ -580,14 +580,13 @@ export class IOTileDevice {
     if (!!(timestamp & (1 << 31)) === true){
       let secondsSince2000 = timestamp & ((1 << 31) - 1);
       catAdapter.info(`Seconds since 2000: ${secondsSince2000}`);
-      let convertedSeconds = (Date.UTC(2000, 1, 1) / 1000) + secondsSince2000;
-      let convertedTime = new Date(convertedSeconds);
-
+      let convertedSeconds = (Date.UTC(2000, 0, 1) / 1000) + secondsSince2000;
+      let convertedTime = new Date(convertedSeconds * 1000);
       let currentSeconds = Date.now() / 1000;
       
       //If UTC is set and decoded Date is within synchronizationSlopSeconds of our current time
       //sets isSynchronized to true.
-      let synched = (Math.abs(currentSeconds - convertedSeconds) <= synchronizationSlopSeconds);
+      let synched = (Math.abs(convertedSeconds - currentSeconds) <= synchronizationSlopSeconds);
 
       //Returns a DeviceUTCTime if UTC is set
       deviceTime = {
@@ -611,9 +610,11 @@ export class IOTileDevice {
     if (!forcedTime){
       forcedTime = new Date();
     }
-    let secondsSince2000 = Math.round((forcedTime.valueOf()/ 1000) - (Date.UTC(2000, 1, 1) / 1000));
-    catAdapter.info(`Sending time to RTC: ${secondsSince2000} fits ${secondsSince2000 <= 0xFFFFFFFF}`);
-    if (secondsSince2000 >= 0xFFFFFFFF && secondsSince2000 > 0){
+    let currentSeconds = Math.round(forcedTime.valueOf()/ 1000);
+    let secondsAt2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
+    let secondsSince2000 = currentSeconds - secondsAt2000;
+    catAdapter.info(`Sending time to RTC: ${secondsSince2000}`);
+    if (secondsSince2000 >= 0xFFFFFFFF || secondsSince2000 < 0){
       throw new ArgumentError("RTC set time exceeds maximum 32 bit uint value");
     }
     await this.adapter.typedRPC(8, 0xAB07, "L", "", [secondsSince2000]);
