@@ -16,29 +16,12 @@ describe('module: iotile.device, IOTileDevice', function () {
         device.adapter.typedRPC = function(){};
     });
 
-    xit('[RTC] should correctly synchronize device time', async function() {
-        let then = Date.UTC(2018, 0, 1) / 1000;
-        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([(then - secondsAt2000) | (1 << 31)]);
-
-        let oldTime = await device.currentTime();
-
-        expect(oldTime).toBeDefined();
-        expect(oldTime.currentTime).toEqual(new Date(then * 1000));
-        expect(oldTime.isSynchronized).toBe(false);
-        expect(oldTime.isUTC).toBe(true);
-        
+    it('[RTC] should correctly synchronize device time', async function() {    
         let forcedTime = Date.now();
         let forcedTimeDiff = (forcedTime / 1000) - secondsAt2000;
         spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([forcedTimeDiff]);
-        await device.synchronizeTime(new Date(forcedTime));
-
-        spyOn(<IOTileAdapter>device.adapter, 'typedRPC').and.returnValue([forcedTimeDiff | (1 << 31)]);
-        let newTime = await device.currentTime();
-
-        expect(newTime).toBeDefined();
-        expect(newTime.currentTime).toEqual(new Date(forcedTime));
-        expect(newTime.isSynchronized).toBe(true);
-        expect(newTime.isUTC).toBe(true);
+        let sentTime = await device.synchronizeTime(new Date(forcedTime));
+        expect(sentTime).toEqual(Math.round(forcedTimeDiff));
     });
 
     it('[RTC] should correctly get synchronized UTC device time', async function() {

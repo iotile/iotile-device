@@ -606,18 +606,17 @@ export class IOTileDevice {
     return deviceTime;
   }
 
-  public async synchronizeTime(forcedTime?: Date): Promise<void> {
+  public async synchronizeTime(forcedTime?: Date): Promise<number> {
     if (!forcedTime){
       forcedTime = new Date();
     }
-    let currentSeconds = Math.round(forcedTime.valueOf()/ 1000);
-    let secondsAt2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
-    let secondsSince2000 = currentSeconds - secondsAt2000;
+
+    let millisecondsAt2000 = Date.UTC(2000, 0, 1);
+    let secondsSince2000 = Math.ceil((forcedTime.valueOf() - millisecondsAt2000) /1000);
     catAdapter.info(`Sending time to RTC: ${secondsSince2000}`);
-    if (secondsSince2000 >= 0xFFFFFFFF || secondsSince2000 < 0){
-      throw new ArgumentError("RTC set time exceeds maximum 32 bit uint value");
-    }
-    await this.adapter.typedRPC(8, 0xAB07, "L", "", [secondsSince2000]);
+
+    await this.adapter.typedRPC(8, 0xAB07, "L", "8x", [secondsSince2000]);
+    return secondsSince2000;
   }
 
   public async downloadStream(streamName: string, progress?: any): Promise<RawReading[]> {
