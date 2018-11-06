@@ -91,7 +91,9 @@ export class UTCAssigner {
      * a stream previously passed to markAnchorStream.
      */
     public addAnchorsFromReport(report: SignedListReport) {
-
+        for (let reading of report.readings){
+            this.addAnchorPoint(reading.id, reading.timestamp, reading.time);
+        }
     }
 
     /**
@@ -99,6 +101,10 @@ export class UTCAssigner {
      * in this report.  Reset readings are those with stream id: 0x5C00.
      */
     public addBreaksFromReport(report: SignedListReport) {
-
+        for (let reading of report.readings){
+            if (reading.stream == 0x5C00){
+                this.addTimeBreak(reading.id);
+            }
+        }
     }
 }
