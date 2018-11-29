@@ -192,7 +192,7 @@ export class UTCAssigner {
             if (reading.stream == 0x5C00){
                 this.addTimeBreak(reading.id);
             }
-            // CHECKME: Do we need to explicitly check for time dropping to 0?
+            // check for time dropping to 0
             if (reading.timestamp < lastReadingTime){
                 this.addTimeBreak(reading.id);
                 lastReadingTime = 0;

@@ -1,8 +1,8 @@
-import { UTCAssigner, UTCAssignerOptions } from "../../src/common/utc-assigner";
+import { UTCAssigner, UTCAssignerOptions, AnchorValueProcessor } from "../../src/common/utc-assigner";
 import { createSequentialReport } from "../../src/mocks/helpers/report-creation.util";
 import { SignedListReport, RawReading } from "../../src/common/iotile-reports";
 
-describe('UTC Assigner', function() {
+xdescribe('UTC Assigner', function() {
     let extrapolate: UTCAssignerOptions = {
         allowExtrapolation: true,
         allowImprecise: false
@@ -13,40 +13,39 @@ describe('UTC Assigner', function() {
         allowImprecise: true
     };
 
-    let extrapolatingAssigner: UTCAssigner;
-    let impreciseAssigner: UTCAssigner;
+    let extrapolatingAssigner: UTCAssigner = new UTCAssigner(extrapolate);
+    let impreciseAssigner: UTCAssigner = new UTCAssigner(imprecise);
     let report: SignedListReport;
     let user: SignedListReport;
 
-    beforeEach(function (){
-        extrapolatingAssigner = new UTCAssigner(extrapolate);
-        impreciseAssigner = new UTCAssigner(imprecise);
+    // beforeEach(function (){
+    //     let userBinary = createSequentialReport(1, 'output 1', 100, 0);
+    //     let systemBinary = createSequentialReport(1, 'system output 10', 100, 1, 0);
 
-        let userBinary = createSequentialReport(1, 'output 1', 100, 0);
-        let systemBinary = createSequentialReport(1, 'system output 10', 100, 1, 0);
-
-        // @ts-ignore
-        [user] = reportParser.pushData(userBinary);
-        // @ts-ignore
-        [report] = reportParser.pushData(systemBinary);
-    });
+    //     // @ts-ignore
+    //     [user] = reportParser.pushData(userBinary);
+    //     // @ts-ignore
+    //     [report] = reportParser.pushData(systemBinary);
+    // });
 
     it('should be able to assign a UTC Timestamp', function(){
 
-        // extrapolatingAssigner.assignUTCTimestamp()
-        // impreciseAssigner.assignUTCTimestamp()
-        expect(true).toBeTruthy();
+        let utcTime = extrapolatingAssigner.assignUTCTimestamp(5, 123456789);
+        let utcTime2 = impreciseAssigner.assignUTCTimestamp(5, 123456789);
+        expect(utcTime).toBeDefined();
+        expect(utcTime2).toBeDefined();
     });
 
     it('should be able to add an anchor point', function(){
-        // extrapolatingAssigner.addAnchorPoint()
-        // impreciseAssigner.addAnchorPoint()
+        let utc = new Date(2018, 10, 11);
+        extrapolatingAssigner.addAnchorPoint(5, 12345, utc);
+        impreciseAssigner.addAnchorPoint(5, 12345, utc);
         expect(true).toBeTruthy();
     });
 
     it('should be able to add a time break', function(){
-        // extrapolatingAssigner.addTimeBreak()
-        // impreciseAssigner.addTimeBreak()
+        extrapolatingAssigner.addTimeBreak(2);
+        impreciseAssigner.addTimeBreak(2);
         expect(true).toBeTruthy();
     });
 
@@ -64,9 +63,15 @@ describe('UTC Assigner', function() {
 
 
     it('should be able to mark an anchor stream', function(){
-        // extrapolatingAssigner.markAnchorStream()
-        // impreciseAssigner.markAnchorStream()
+        extrapolatingAssigner.markAnchorStream(5001);
+        impreciseAssigner.markAnchorStream(5001);
         expect(true).toBeTruthy();
+
+        let processor: AnchorValueProcessor = function(streamId, readingId, uptime, value){
+            return uptime + 12345;
+        }
+        extrapolatingAssigner.markAnchorStream(5001, processor);
+        impreciseAssigner.markAnchorStream(5001, processor);
     });
     
 })
