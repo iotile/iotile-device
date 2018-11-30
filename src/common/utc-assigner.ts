@@ -20,18 +20,13 @@ export type AnchorValueProcessor = (streamID: number, readingID: number, uptime:
 export class TimeSegment {
     public firstReadingId: number;
     public lastReadingId: number;
+    public anchorPoint: AnchorPoint | undefined;
+    public placeholder: boolean;
 
-    constructor(firstReadingId: number, lastReadingId: number){
+    constructor(firstReadingId: number, lastReadingId: number, placeholder: boolean = false){
         this.firstReadingId = firstReadingId;
         this.lastReadingId = lastReadingId;
-    }
-
-    public set anchorPoint(anchorPoint: AnchorPoint) {
-        this.anchorPoint = anchorPoint;
-    }
-
-    public get anchorPoint(): AnchorPoint {
-        return this.anchorPoint;
+        this.placeholder = placeholder;
     }
 }
 
@@ -60,7 +55,7 @@ export class TimeSegment {
 export class UTCAssigner {
     private extrapolation: boolean;
     private imprecise: boolean;
-    private timeSegments: TimeSegment[] = [];
+    public timeSegments: TimeSegment[] = [];
     private segmentStartId: number = 0;
     private lastId: number = 0;
     private anchorStreams: {[key: number]: AnchorValueProcessor} = {};
@@ -68,6 +63,7 @@ export class UTCAssigner {
     constructor(options: UTCAssignerOptions) {
         this.extrapolation = options.allowExtrapolation;
         this.imprecise = options.allowImprecise;
+        this.timeSegments.push(new TimeSegment(this.segmentStartId, Infinity, true));
     }
 
     /**
@@ -91,12 +87,12 @@ export class UTCAssigner {
             }
             return this.assignUTCFromAnchor(relativeTime, segment.anchorPoint);
         } else {
-            throw new ArgumentError("Could not assign imprecise UTC Timestamp");
+            throw new ArgumentError("Could not assign precise UTC Timestamp");
         }
     }
 
     private getTimeSegment(readingID: number): TimeSegment {
-        let timeSegment: TimeSegment = this.timeSegments[-1];
+        let timeSegment: TimeSegment = this.timeSegments[0];
         for (let segment of this.timeSegments){
             if (readingID >= segment.firstReadingId && readingID <= segment.lastReadingId) {
                 timeSegment = segment;
@@ -133,17 +129,36 @@ export class UTCAssigner {
      * also be because the device had its clock explicitly reset.
      */
     public addTimeBreak(readingID: number) {
-        let segment = new TimeSegment(this.segmentStartId, readingID);
+        let segment = new TimeSegment(this.segmentStartId, readingID - 1);
+        
+        let last = this.timeSegments.pop();
+        // keep anchorPoints in the appropriate segment
+        if (last && last.anchorPoint && (last.anchorPoint.readingId < readingID) && (last.anchorPoint.readingId > this.segmentStartId)){
+            segment.anchorPoint = last.anchorPoint;
+            last.anchorPoint = undefined;
+        }
         this.timeSegments.push(segment);
-        this.segmentStartId = readingID + 1;   
+        this.segmentStartId = readingID;
+
+        if (last && last.placeholder){
+            last.firstReadingId = readingID;
+            last.lastReadingId = Infinity;
+            last.anchorPoint = last.anchorPoint;
+            last.placeholder = true;
+            this.timeSegments.push(last);
+        }          
     }
 
+    // If we're not extrapolating, replace the [placeholder] final time segment last id (infinity) with known last reading id
     private closeSegments(){
-        if (this.extrapolation){
-            this.lastId = Infinity;
+        if (!this.extrapolation){
+            let finalSegment = this.timeSegments.pop();
+            let newFinalSegment = new TimeSegment(this.segmentStartId, this.lastId);
+            if (finalSegment && finalSegment.anchorPoint){
+                newFinalSegment.anchorPoint = finalSegment.anchorPoint;
+            }  
+            this.timeSegments.push(newFinalSegment);
         }
-        let segment = new TimeSegment(this.segmentStartId, this.lastId);
-        this.timeSegments.push(segment);
     }
 
     /**
