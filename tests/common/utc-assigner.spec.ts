@@ -32,8 +32,8 @@ describe('UTC Assigner', function() {
     });
 
     it('should be able to assign an imprecise UTC Timestamp', function(){
-        /* Sements: 
-        [0 --{Anchor: 3}-- 4] <break: 5> [5 --{Anchor: 7}--Infinity]
+        /* Segments: 
+        [0 --{Anchor: 3}-- 4] <break: 5> [5 --{Anchor: 7}--10][10 --- ?]
         */
         let newUTC = new Date(2018, 10, 11);
         let newerUTC = new Date(2018, 10, 11, 1, 0);
@@ -41,12 +41,11 @@ describe('UTC Assigner', function() {
         impreciseAssigner.addAnchorPoint(3, 12345, newUTC);
         impreciseAssigner.addTimeBreak(5);
         impreciseAssigner.addAnchorPoint(7, 123, newerUTC);
-
-        console.log(JSON.stringify(impreciseAssigner.timeSegments));
+        impreciseAssigner.addTimeBreak(10);
 
         let approxTime = impreciseAssigner.assignUTCTimestamp(1, 12300);
         let approxTime2 = impreciseAssigner.assignUTCTimestamp(5, 12);
-        let approxTime3 = impreciseAssigner.assignUTCTimestamp(8, 123);
+        let approxTime3 = impreciseAssigner.assignUTCTimestamp(15, 123);
         
         console.log("APPROXIMATE");
         console.log(JSON.stringify(approxTime));
@@ -56,16 +55,14 @@ describe('UTC Assigner', function() {
         expect(approxTime).toBeDefined();
         expect(approxTime2).toBeDefined();
         expect(approxTime3).toBeDefined();
-
-        // FIXME: add check for argument error [no extrapolation]
         
-        // expect(approxTime2.getTime()).toBeGreaterThan(approxTime.getTime());
-        // expect(approxTime3.getTime()).toBeGreaterThan(approxTime2.getTime());
+        expect(approxTime2.getTime()).toBeGreaterThan(approxTime.getTime());
+        expect(approxTime3.getTime()).toBeGreaterThan(approxTime2.getTime());
     });
 
-    it('should be able to assign an extrapolated UTC Timestamp', function(){
-        /* Sements: 
-        [0 --{Anchor: 3}-- 4] <break: 5> [5 --{Anchor: 7}--Infinity]
+    xit('should be able to assign an extrapolated UTC Timestamp', function(){
+        /* Segments: 
+        [0 --{Anchor: 3}-- 4] <break: 5> [5 --{Anchor: 7}--10] <break: 10> [10 -- Infinity]
         */
         let newUTC = new Date(2018, 10, 11);
         let newerUTC = new Date(2018, 10, 11, 1, 0);
@@ -73,21 +70,19 @@ describe('UTC Assigner', function() {
         extrapolatingAssigner.addAnchorPoint(3, 12345, newUTC);
         extrapolatingAssigner.addTimeBreak(5);
         extrapolatingAssigner.addAnchorPoint(7, 123, newerUTC);
+        extrapolatingAssigner.addTimeBreak(10);
         
         let extraTime = extrapolatingAssigner.assignUTCTimestamp(1, 12300); 
 
         let extraTime2 = extrapolatingAssigner.assignUTCTimestamp(5, 12); 
-        let extraTime3 = extrapolatingAssigner.assignUTCTimestamp(8, 123);
-        
-        console.log(JSON.stringify(extraTime));
-        console.log(JSON.stringify(extraTime2));
-        console.log(JSON.stringify(extraTime3));
+        let extraTime3 = extrapolatingAssigner.assignUTCTimestamp(8, 150);
 
         expect(extraTime).toBeDefined();
         expect(extraTime2).toBeDefined();
         expect(extraTime3).toBeDefined();
-        // expect(extraTime2.getTime()).toBeGreaterThan(extraTime.getTime());
-        // expect(extraTime3.getTime()).toBeGreaterThan(extraTime2.getTime());
+        expect(extraTime2.getTime()).toBeGreaterThan(extraTime.getTime());
+        expect(extraTime3.getTime()).toBeGreaterThan(extraTime2.getTime());
+        // TODO: expect to throw ArgumentError if no anchorpoint
     });
 
     it('should be able to add an anchor point', function(){

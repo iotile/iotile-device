@@ -81,9 +81,11 @@ export class UTCAssigner {
         } else if (this.imprecise) {
             let relativeTime = readingTime;
             while (!segment.anchorPoint){
-                // CHECKME!!!!
+                console.log("LOOPING");
                 relativeTime -= (readingID - segment.lastReadingId);
-                segment = this.getTimeSegment(segment.lastReadingId + 1);
+                segment = this.getTimeSegment(segment.firstReadingId - 1);
+                console.log(`Relative time: ${relativeTime}`);
+                console.log(JSON.stringify(segment));
             }
             return this.assignUTCFromAnchor(relativeTime, segment.anchorPoint);
         } else {
@@ -92,7 +94,7 @@ export class UTCAssigner {
     }
 
     private getTimeSegment(readingID: number): TimeSegment {
-        let timeSegment: TimeSegment = this.timeSegments[0];
+        let timeSegment: TimeSegment = this.timeSegments[this.timeSegments.length -1];
         for (let segment of this.timeSegments){
             if (readingID >= segment.firstReadingId && readingID <= segment.lastReadingId) {
                 timeSegment = segment;
@@ -102,7 +104,9 @@ export class UTCAssigner {
     }
 
     private assignUTCFromAnchor(readingTime: number, anchor: AnchorPoint): Date {
-        let utcTime = new Date(anchor.utcTime.valueOf() + (readingTime * 1000));
+        let anchorOffset = readingTime - anchor.localTime;
+        console.log(`Anchor: ${JSON.stringify(anchor)} ; Reading Time: ${readingTime}`)
+        let utcTime = new Date(anchor.utcTime.valueOf() + (anchorOffset * 1000));
         return utcTime;
     }
 
@@ -214,7 +218,9 @@ export class UTCAssigner {
             } else {
                 lastReadingTime = reading.timestamp;
             }
-            this.lastId = reading.id;
+            if (reading.id > this.lastId){
+                this.lastId = reading.id;
+            }
         }
     }
 }
