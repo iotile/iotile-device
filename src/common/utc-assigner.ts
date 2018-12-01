@@ -81,11 +81,8 @@ export class UTCAssigner {
         } else if (this.imprecise) {
             let relativeTime = readingTime;
             while (!segment.anchorPoint){
-                console.log("LOOPING");
                 relativeTime -= (readingID - segment.lastReadingId);
                 segment = this.getTimeSegment(segment.firstReadingId - 1);
-                console.log(`Relative time: ${relativeTime}`);
-                console.log(JSON.stringify(segment));
             }
             return this.assignUTCFromAnchor(relativeTime, segment.anchorPoint);
         } else {
@@ -105,7 +102,6 @@ export class UTCAssigner {
 
     private assignUTCFromAnchor(readingTime: number, anchor: AnchorPoint): Date {
         let anchorOffset = readingTime - anchor.localTime;
-        console.log(`Anchor: ${JSON.stringify(anchor)} ; Reading Time: ${readingTime}`)
         let utcTime = new Date(anchor.utcTime.valueOf() + (anchorOffset * 1000));
         return utcTime;
     }

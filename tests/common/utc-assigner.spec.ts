@@ -47,11 +47,6 @@ describe('UTC Assigner', function() {
         let approxTime2 = impreciseAssigner.assignUTCTimestamp(5, 12);
         let approxTime3 = impreciseAssigner.assignUTCTimestamp(15, 123);
         
-        console.log("APPROXIMATE");
-        console.log(JSON.stringify(approxTime));
-        console.log(JSON.stringify(approxTime2));
-        console.log(JSON.stringify(approxTime3));
-        
         expect(approxTime).toBeDefined();
         expect(approxTime2).toBeDefined();
         expect(approxTime3).toBeDefined();
@@ -60,7 +55,7 @@ describe('UTC Assigner', function() {
         expect(approxTime3.getTime()).toBeGreaterThan(approxTime2.getTime());
     });
 
-    xit('should be able to assign an extrapolated UTC Timestamp', function(){
+    it('should be able to assign an extrapolated UTC Timestamp', function(){
         /* Segments: 
         [0 --{Anchor: 3}-- 4] <break: 5> [5 --{Anchor: 7}--10] <break: 10> [10 -- Infinity]
         */
@@ -73,7 +68,6 @@ describe('UTC Assigner', function() {
         extrapolatingAssigner.addTimeBreak(10);
         
         let extraTime = extrapolatingAssigner.assignUTCTimestamp(1, 12300); 
-
         let extraTime2 = extrapolatingAssigner.assignUTCTimestamp(5, 12); 
         let extraTime3 = extrapolatingAssigner.assignUTCTimestamp(8, 150);
 
