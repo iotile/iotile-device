@@ -18,6 +18,7 @@ export {findByDeviceID} from "./mocks/helpers/device-finding.util";
 export * from "./mocks/helpers/report-creation.util";
 export * from "./mocks/errors";
 export {setupMockBLE} from "./mocks/helpers/mock-ble-setup";
+export * from "./common/utc-assigner";
 export * from "./mocks/mock-ble-device";
 export * from "./mocks/utilities";
 export * from "./mocks/virtual-device";
