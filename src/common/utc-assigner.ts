@@ -175,8 +175,8 @@ export class UTCAssigner {
     public markAnchorStream(streamID: number, valueProcessor?: AnchorValueProcessor) {
         if (!valueProcessor){
             valueProcessor = function(streamID: number, readingID: number, uptime: number, value: number) {
-                // assume uptime can be interpreted as-is as seconds since 2000
-                return uptime;
+                // assume value can be interpreted as-is as seconds since 2000
+                return value;
             }
         }
         this.anchorStreams[streamID] = valueProcessor;
