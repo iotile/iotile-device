@@ -10,7 +10,7 @@ export interface UTCAssignerOptions {
 
 export interface AnchorPoint {
     readingId: number,
-    localTime: number,
+    localTime: number | undefined,
     utcTime: Date
 }
 
@@ -101,7 +101,14 @@ export class UTCAssigner {
     }
 
     private assignUTCFromAnchor(readingTime: number, anchor: AnchorPoint): Date {
-        let anchorOffset = readingTime - anchor.localTime;
+        let anchorOffset: number;
+        if (anchor.localTime){
+            anchorOffset = readingTime - anchor.localTime;
+        } else {
+            // TODO: calculate anchorOffset based on ??? [maybe like approximated points]
+            anchorOffset = 21513;
+        }
+        
         let utcTime = new Date(anchor.utcTime.valueOf() + (anchorOffset * 1000));
         return utcTime;
     }
@@ -112,7 +119,11 @@ export class UTCAssigner {
      * utc time.  It is these anchor points that are used as ground
      * truth values to assign utc times to all other points.
      */
-    public addAnchorPoint(readingID: number, localTime: number, utc: Date) {
+    public addAnchorPoint(readingID: number, localTime: number | undefined, utc: Date) {
+        if (localTime && !!(localTime & (1 << 31)) === true){
+            localTime = undefined;
+        }
+
         let anchorPoint: AnchorPoint = {
             readingId: readingID,
             localTime: localTime,
@@ -190,11 +201,11 @@ export class UTCAssigner {
     public addAnchorsFromReport(report: SignedListReport) {
         for (let reading of report.readings){
             if (reading.stream in Object.keys(this.anchorStreams)){
-
                 let utc = this.anchorStreams[reading.stream](reading.stream, reading.id, reading.timestamp, reading.value)
                 this.addAnchorPoint(reading.id, reading.timestamp, new Date((utc + SECONDS_AT_2000) * 1000));
             }
         }
+        this.addAnchorPoint(report.header.reportID, report.header.sentTime, report.receivedTime);
     }
 
     /**

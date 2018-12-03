@@ -68,6 +68,12 @@ export interface DeviceUTCTime {
   currentTime: Date;
 }
 
+export function convertToSecondsSince2000(date: Date): number {
+  let millisecondsAt2000 = Date.UTC(2000, 0, 1);
+  let secondsSince2000 = Math.ceil((date.valueOf() - millisecondsAt2000) /1000);
+  return secondsSince2000;
+}
+
 export type DeviceTime = DeviceUptime | DeviceUTCTime;
 
 export interface ReceiveReportsOptions {
@@ -611,8 +617,7 @@ export class IOTileDevice {
       forcedTime = new Date();
     }
 
-    let millisecondsAt2000 = Date.UTC(2000, 0, 1);
-    let secondsSince2000 = Math.ceil((forcedTime.valueOf() - millisecondsAt2000) /1000);
+    let secondsSince2000 = convertToSecondsSince2000(forcedTime);
     catAdapter.info(`Sending time to RTC: ${secondsSince2000}`);
 
     await this.adapter.errorHandlingRPC(8, 0x1010, "L", "L", [secondsSince2000]);
