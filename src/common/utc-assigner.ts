@@ -111,7 +111,11 @@ export class UTCAssigner {
             while (!nextAnchor || !(nextAnchor.localTime)){
                 nextSegment = this.getTimeSegment(increment);
                 nextAnchor = nextSegment.anchorPoint;
-                increment = nextSegment.lastReadingId + 1;
+                if (nextSegment.lastReadingId === Infinity && (!(nextAnchor) || !(nextAnchor.localTime))){
+                    throw new ArgumentError('Cannot assign UTC from anchorpoint: no local time reference');
+                } else {
+                    increment = nextSegment.lastReadingId + 1;
+                }
             }
             anchor.localTime = nextAnchor.localTime - (Math.ceil((nextAnchor.utcTime.valueOf() - anchor.utcTime.valueOf()) / 1000));
             anchorOffset = readingTime - anchor.localTime;
