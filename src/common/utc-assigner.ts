@@ -105,8 +105,16 @@ export class UTCAssigner {
         if (anchor.localTime){
             anchorOffset = readingTime - anchor.localTime;
         } else {
-            // TODO: calculate anchorOffset based on ??? [maybe like approximated points]
-            anchorOffset = 21513;
+            let nextAnchor;
+            let nextSegment;
+            let increment = anchor.readingId;
+            while (!nextAnchor || !(nextAnchor.localTime)){
+                nextSegment = this.getTimeSegment(increment);
+                nextAnchor = nextSegment.anchorPoint;
+                increment = nextSegment.lastReadingId + 1;
+            }
+            anchor.localTime = nextAnchor.localTime - (Math.ceil((nextAnchor.utcTime.valueOf() - anchor.utcTime.valueOf()) / 1000));
+            anchorOffset = readingTime - anchor.localTime;
         }
         
         let utcTime = new Date(anchor.utcTime.valueOf() + (anchorOffset * 1000));
