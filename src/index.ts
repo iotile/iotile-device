@@ -1,6 +1,5 @@
 export * from "./common/error-space";
-export {IOTileDevice, BLEConnectionInfo, StreamerInfo, RemoteBridge, MatchBy, 
-    Config, RemoteBridgeState, RemoteBridgeStatus} from "./device/iotile-device";
+export * from "./device/iotile-device";
 export {IOTileAdapter} from "./device/iotile-serv";
 export {RPCError, RPCData, IOTileRPCInterface} from "./device/iotile-iface-rpc";
 export {IOTileAdvertisementService, IOTileAdvertisement, IOTileAdvertisementFlags} from "./device/iotile-advert-serv";
