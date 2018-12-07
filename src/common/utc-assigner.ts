@@ -1,7 +1,7 @@
 import { SignedListReport, RawReading } from "./iotile-reports";
 import { ArgumentError, InvalidOperationError } from "iotile-common";
 import { Category } from "typescript-logging";
-import { catService } from "../config";
+import { catUTCAssigner } from "../config";
 
 let SECONDS_AT_2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
 
@@ -67,7 +67,7 @@ export class UTCAssigner {
         this.extrapolation = options.allowExtrapolation;
         this.imprecise = options.allowImprecise;
         this.timeSegments.push(new TimeSegment(this.segmentStartId, Infinity, true));
-        this.catUTC = new Category('UTC Assigner', catService);
+        this.catUTC = catUTCAssigner;
     }
 
     /**
