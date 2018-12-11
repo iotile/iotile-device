@@ -1,5 +1,7 @@
 import { SignedListReport, RawReading } from "./iotile-reports";
 import { ArgumentError, InvalidOperationError } from "iotile-common";
+import { Category } from "typescript-logging";
+import { catUTCAssigner } from "../config";
 
 let SECONDS_AT_2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
 
@@ -56,6 +58,7 @@ export class UTCAssigner {
     private extrapolation: boolean;
     private imprecise: boolean;
     public timeSegments: TimeSegment[] = [];
+    public catUTC: Category;
     private segmentStartId: number = 0;
     private lastId: number = 0;
     private anchorStreams: {[key: number]: AnchorValueProcessor} = {};
@@ -64,6 +67,7 @@ export class UTCAssigner {
         this.extrapolation = options.allowExtrapolation;
         this.imprecise = options.allowImprecise;
         this.timeSegments.push(new TimeSegment(this.segmentStartId, Infinity, true));
+        this.catUTC = catUTCAssigner;
     }
 
     /**
@@ -82,7 +86,12 @@ export class UTCAssigner {
             let relativeTime = readingTime;
             while (!segment.anchorPoint){
                 relativeTime -= (readingID - segment.lastReadingId);
-                segment = this.getTimeSegment(segment.firstReadingId - 1);
+                if (segment.firstReadingId > 0){
+                    this.catUTC.info(`Finding nearby anchors: ${segment.firstReadingId - 1}`);
+                    segment = this.getTimeSegment(segment.firstReadingId - 1);
+                } else {
+                    throw new ArgumentError("Could not assign precise UTC Timestamp");
+                }    
             }
             return this.assignUTCFromAnchor(relativeTime, segment.anchorPoint);
         } else {
@@ -143,6 +152,7 @@ export class UTCAssigner {
         }
         let segment = this.getTimeSegment(readingID);
         segment.anchorPoint = anchorPoint;
+        this.catUTC.info(`Adding Anchor Point: ${JSON.stringify(segment)}`);
     }
 
     /**
@@ -160,6 +170,7 @@ export class UTCAssigner {
             segment.anchorPoint = last.anchorPoint;
             last.anchorPoint = undefined;
         }
+        this.catUTC.info(`Adding Time Break: ${JSON.stringify(segment)}`);
         this.timeSegments.push(segment);
         this.segmentStartId = readingID;
 
@@ -217,6 +228,7 @@ export class UTCAssigner {
                 this.addAnchorPoint(reading.id, reading.timestamp, new Date((utc + SECONDS_AT_2000) * 1000));
             }
         }
+        this.catUTC.info(`Adding Anchor Point from report header: ${report.header.reportID} ${report.header.sentTime} ${report.receivedTime}`)
         this.addAnchorPoint(report.header.reportID, report.header.sentTime, report.receivedTime);
     }
 
