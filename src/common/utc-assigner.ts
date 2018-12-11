@@ -79,7 +79,6 @@ export class UTCAssigner {
     public assignUTCTimestamp(readingID: number, readingTime: number): Date {
         this.closeSegments();
         let segment = this.getTimeSegment(readingID);
-        this.catUTC.info(JSON.stringify(this.timeSegments));
 
         if (segment.anchorPoint){
             return this.assignUTCFromAnchor(readingTime, segment.anchorPoint);

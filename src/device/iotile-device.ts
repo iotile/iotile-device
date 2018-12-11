@@ -502,25 +502,6 @@ export class IOTileDevice {
       progress = new ProgressNotifier();
     }
 
-    let triggeredOne = false;
-
-    for (let key in Object.keys(options.expectedStreamers)){
-      let info = await this.queryStreamerRPC(+key);
-      let streamName = options.expectedStreamers[key];
-
-      // Check if streamer has been triggered yet
-      if (!triggeredOne || info.commStatus === 0) {
-          let err = await this.triggerStreamer(+key);
-        
-          // if error != no new reports
-          if (err && (err != 0x8003801f)){
-            catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], JSON.stringify(err)));
-            result.receivedFromAll = false;
-          }
-          triggeredOne = true;
-        }
-    }
-
     progress.startOne('Receiving Summary Streams', 1);
     let receivedNames: number[] = [];
 
@@ -548,6 +529,27 @@ export class IOTileDevice {
         catAdapter.error(`[IOTileDevice] Could not process report: ${options.expectedStreamers[report.streamer]}`, new Error(err));
       }
     });
+
+    let triggeredOne = false;
+
+    for (let key in Object.keys(options.expectedStreamers)){
+      let info = await this.queryStreamerRPC(+key);
+      let streamName = options.expectedStreamers[key];
+
+      // Check if streamer has been triggered yet
+      if (!triggeredOne || info.commStatus === 0) {
+          catAdapter.info("Triggering streamer on " + key);
+          let err = await this.triggerStreamer(+key);
+          catAdapter.info("Received from trigger streamer: " + err);
+          
+          // if error != no new reports
+          if (err && (err != 0x8003801f)){
+            catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], JSON.stringify(err)));
+            result.receivedFromAll = false;
+          }
+          triggeredOne = true;
+        }
+    }
 
     let triggeredReports = await this.waitReports(progress);
     if (triggeredReports < 0){
