@@ -1,5 +1,5 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
-
+import {catService} from "../config";
 import * as IOTileTypes from "../common/iotile-types";
 import {ReportParser} from "./iotile-report-parser";
 
@@ -69,9 +69,17 @@ export class IOTileStreamingInterface {
                     let report = reports[i];
     
                     if (report.constructor.name === 'IndividualReport') {
-                        this.channel.notify(IOTileTypes.AdapterEvent.RawRealtimeReading, report);
+                        try {
+                            this.channel.notify(IOTileTypes.AdapterEvent.RawRealtimeReading, report);
+                        } catch (err){
+                            catService.error("[Streaming Interface] ", err);
+                        }
                     } else if (report.constructor.name === 'SignedListReport') {
-                        this.channel.notify(IOTileTypes.AdapterEvent.RawRobustReport, report);
+                        try {
+                            this.channel.notify(IOTileTypes.AdapterEvent.RawRobustReport, report);
+                        } catch (err){
+                            catService.error("[Streaming Interface] ", err);
+                        }
                     } else {
                         //There should not be any other type of report that can be returned
                         //by the report parser but at least log a warning about this
