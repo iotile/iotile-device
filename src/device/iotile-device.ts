@@ -242,6 +242,7 @@ export class IOTileDevice {
   private reportProgressHandler: any;
   private reportFinishedHandler: any;
   private reportDisconnectedHandler: any;
+  private receiveReportHandler: any;
 
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
     this.advertisement = advData;
@@ -257,6 +258,7 @@ export class IOTileDevice {
     this.reportProgressHandler = null;
     this.reportFinishedHandler = null;
     this.reportDisconnectedHandler = null;
+    this.receiveReportHandler = null;
   }
 
   public async acknowledgeStreamerRPC(streamer: number, highestID: number, force: boolean) {
@@ -493,6 +495,11 @@ export class IOTileDevice {
         this.reportDisconnectedHandler();
         this.reportDisconnectedHandler = null;
     }
+
+    if (this.receiveReportHandler) {
+      this.receiveReportHandler();
+      this.receiveReportHandler = null;
+  }
   }
 
   public async receiveReports(options: ReceiveReportsOptions, progress?: ProgressNotifier): Promise<ReceiveReportsResult> {
@@ -508,7 +515,7 @@ export class IOTileDevice {
     let subNotifier = progress.startOne(`Downloading Device Reports`, Object.keys(options.expectedStreamers).length);
 
     // get the triggered reports as they come in
-    this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
+    this.receiveReportHandler = this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
       try {
           let streamName = options.expectedStreamers[report.streamer];
           if (!streamName){
