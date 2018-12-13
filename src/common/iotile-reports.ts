@@ -1,7 +1,7 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
 import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "@iotile/iotile-common";
 import { ReportReassembler } from "./report-reassembler";
-import { catService } from "../config";
+import { catReports } from "../config";
 
 export class RawReading {
     private _raw_timestamp: number;
@@ -263,32 +263,16 @@ export class SignedListReport extends IOTileReport {
     constructor (uuid: number, streamer: number, readings: Array<RawReading>, rawData: ArrayBuffer, receivedTime: Date) {
         super();
 
+        this._highestID = 0;
+        this._lowestID = 0;
+
         this._uuid = uuid;
         this._readings = readings;
         this._rawData = rawData;
         this._streamer = streamer;
         this._receivedTime = receivedTime;
 
-        //Calculate lowest and highest ids based on decoded readings
-        if (readings.length == 0) {
-            this._lowestID = 0;
-            this._highestID = 0;
-        } else {
-            //Initialize with the first reading to avoid needing to use sentinal values
-            this._lowestID = readings[0].id;
-            this._highestID = readings[0].id;
-
-            for (let i = 1; i < readings.length; ++i) {
-                let id = readings[i].id;
-                if (id < this._lowestID) {
-                    this._lowestID = id;
-                }
-
-                if (id > this._highestID) {
-                    this._highestID = id;
-                }
-            }
-        }
+        this.updateReadingRange(readings);
 
         this._header = SignedListReport.extractHeader(rawData);
         this._valid = this.validateSignature();
@@ -326,34 +310,7 @@ export class SignedListReport extends IOTileReport {
         return this._header;
     }
 
-    private updateReadings(rawData: ArrayBuffer): Array<RawReading>{
-        let readings: Array<RawReading> = [];
-        let onTime = new Date(this._receivedTime.valueOf() - (this._header.sentTime*1000));
-        //Now decode and parse the actual readings in the report
-        // get length of readings
-        let allReadingsData = rawData.slice(20, rawData.byteLength - 24);
-
-        for (let i = 0; i < allReadingsData.byteLength; i += 16) {
-            let readingData = allReadingsData.slice(i, i+16);
-            let reading = unpackArrayBuffer("HHLLL", readingData);
-            let stream = reading[0]; //reading[1] is reserved
-            let readingID = reading[2];
-            let readingTimestamp = reading[3];
-            let readingValue = reading[4];
-
-            let parsedReading = new RawReading(stream, readingValue, readingTimestamp, onTime, readingID);
-            readings.push(parsedReading);
-        }
-        return this._readings;
-    }
-
-    private updateReport(rawData: ArrayBuffer, readings?: Array<RawReading>){
-        this._rawData = rawData;
-        if (!readings){
-            readings = this.updateReadings(rawData);
-        }
-        this._readings = readings;
-
+    private updateReadingRange(readings: RawReading[]) {
         //Calculate lowest and highest ids based on decoded readings
         if (readings.length == 0) {
             this._lowestID = 0;
@@ -374,8 +331,36 @@ export class SignedListReport extends IOTileReport {
                 }
             }
         }
+    }
 
+    private updateReadings(rawData: ArrayBuffer) {
+        let readings: Array<RawReading> = [];
+        let onTime = new Date(this._receivedTime.valueOf() - (this._header.sentTime*1000));
+        //Now decode and parse the actual readings in the report
+        // get length of readings
+        let allReadingsData = rawData.slice(20, rawData.byteLength - 24);
+
+        for (let i = 0; i < allReadingsData.byteLength; i += 16) {
+            let readingData = allReadingsData.slice(i, i+16);
+            let reading = unpackArrayBuffer("HHLLL", readingData);
+            let stream = reading[0]; //reading[1] is reserved
+            let readingID = reading[2];
+            let readingTimestamp = reading[3];
+            let readingValue = reading[4];
+
+            let parsedReading = new RawReading(stream, readingValue, readingTimestamp, onTime, readingID);
+            readings.push(parsedReading);
+        }
+
+        this._readings = readings;
+        this.updateReadingRange(readings);
+    }
+
+    private updateReport(rawData: ArrayBuffer) {
+        this._rawData = rawData;
         this._header = SignedListReport.extractHeader(rawData);
+
+        this.updateReadings(rawData);
     }
 
     private validateSignature(): SignatureStatus {
@@ -392,18 +377,24 @@ export class SignedListReport extends IOTileReport {
 
         if (calc.compareSignatures(embeddedSig, signature)) {
             return SignatureStatus.Valid;
-        } else {
-            catService.info("[IOTileReport] Report signature invalid, attempting to reassemble");
-            let reassembler = new ReportReassembler(this.rawData);
-            let fixable = reassembler.fixOutOfOrderChunks();
-            if (!fixable){
-                catService.error("[IOTileReport] Unable to correct report signature", new Error("InvalidHash"));
-                return SignatureStatus.Invalid;
-            } else {
-                let newReport = reassembler.getFixedReport();
-                this.updateReport(newReport);
-            }
+        } 
+        
+        /**
+         * If the signature is invalid, attempt to automatically fix it assuming that the
+         * cause is due to the Android bluetooth stack sending us out-of-order report chunks.
+         */
+        catReports.warn("Report signature invalid, attempting to reassemble");
+        let reassembler = new ReportReassembler(this.rawData);
+
+        if (reassembler.fixOutOfOrderChunks()) {
+            catReports.info("Report successfully fixed");
+
+            let newReport = reassembler.getFixedReport();
+            this.updateReport(newReport);
             return SignatureStatus.Valid;
         }
+
+        catReports.error("Unable to correct report signature", null);
+        return SignatureStatus.Invalid;  
     }
 }
