@@ -1,4 +1,4 @@
-import { guid, UnknownKeyError} from "iotile-common";
+import { guid, UnknownKeyError} from "@iotile/iotile-common";
 import {catService} from "../config";
 
 export abstract class AbstractNotificationService {
