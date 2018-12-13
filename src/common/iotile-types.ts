@@ -34,7 +34,8 @@ export enum AdapterEvent {
   RobustReportFinished,
   UnrecoverableStreamingError,
   StreamingInterrupted,        //If the user puts the app into the background, it won't get streaming notifications so we need to notify anyone that is expecting them
-  RobustReportInvalid
+  RobustReportInvalid,
+  Length
 }
 
 export interface BLEChannel {

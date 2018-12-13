@@ -260,22 +260,25 @@ export class SignedListReport extends IOTileReport {
         }
     }
 
-    constructor (uuid: number, streamer: number, readings: Array<RawReading>, rawData: ArrayBuffer, receivedTime: Date) {
+    constructor (uuid: number, streamer: number, rawData: ArrayBuffer, receivedTime: Date) {
         super();
 
         this._highestID = 0;
         this._lowestID = 0;
 
         this._uuid = uuid;
-        this._readings = readings;
+        this._readings = [];
         this._rawData = rawData;
         this._streamer = streamer;
         this._receivedTime = receivedTime;
 
-        this.updateReadingRange(readings);
-
         this._header = SignedListReport.extractHeader(rawData);
         this._valid = this.validateSignature();
+
+        if (this._valid === SignatureStatus.Valid) {
+            this.updateReadings(this._rawData);
+            this.updateReadingRange(this._readings);
+        }
     }
 
     public get deviceID() {
@@ -356,13 +359,11 @@ export class SignedListReport extends IOTileReport {
         this.updateReadingRange(readings);
     }
 
-    private updateReport(rawData: ArrayBuffer) {
-        this._rawData = rawData;
-        this._header = SignedListReport.extractHeader(rawData);
-
-        this.updateReadings(rawData);
-    }
-
+    /**
+     * Note that this method is designed to be called from the constructor
+     * only.  It needs to be followed by calls to updateReadings() and updateReadingRange()
+     * since it may modify the raw report data.
+     */
     private validateSignature(): SignatureStatus {
         let calc = new SHA256Calculator();
 
@@ -390,7 +391,8 @@ export class SignedListReport extends IOTileReport {
             catReports.info("Report successfully fixed");
 
             let newReport = reassembler.getFixedReport();
-            this.updateReport(newReport);
+            this._rawData = newReport;
+
             return SignatureStatus.Valid;
         }
 
