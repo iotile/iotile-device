@@ -237,13 +237,6 @@ export class IOTileDevice {
   public adapter: AbstractIOTileAdapter;
   private downloadLock: any;
 
-  private reportStartedHandler: any;
-  private reportStalledHandler: any;
-  private reportProgressHandler: any;
-  private reportFinishedHandler: any;
-  private reportDisconnectedHandler: any;
-  private receiveReportHandler: any;
-
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
     this.advertisement = advData;
     this.deviceID = advData.deviceID;
@@ -252,13 +245,6 @@ export class IOTileDevice {
     this.slug = deviceIDToSlug(this.deviceID);
     this.connectionID = advData.connectionID;
     this.downloadLock = new Mutex;
-
-    this.reportStartedHandler = null;
-    this.reportStalledHandler = null;
-    this.reportProgressHandler = null;
-    this.reportFinishedHandler = null;
-    this.reportDisconnectedHandler = null;
-    this.receiveReportHandler = null;
   }
 
   public async acknowledgeStreamerRPC(streamer: number, highestID: number, force: boolean) {
@@ -442,11 +428,11 @@ export class IOTileDevice {
         reportType = null;
     }
 
-    this.reportStartedHandler = this.adapter.subscribe(AdapterEvent.RobustReportStarted, progressCallback);
-    this.reportStalledHandler = this.adapter.subscribe(AdapterEvent.RobustReportStalled, progressCallback);
-    this.reportProgressHandler =  this.adapter.subscribe(AdapterEvent.RobustReportProgress, progressCallback);
-    this.reportFinishedHandler = this.adapter.subscribe(AdapterEvent.RobustReportFinished, progressCallback);
-    this.reportDisconnectedHandler = this.adapter.subscribe(AdapterEvent.Disconnected, disconnectCallback);
+    let reportStartedHandler = this.adapter.subscribe(AdapterEvent.RobustReportStarted, progressCallback);
+    let reportStalledHandler = this.adapter.subscribe(AdapterEvent.RobustReportStalled, progressCallback);
+    let reportProgressHandler =  this.adapter.subscribe(AdapterEvent.RobustReportProgress, progressCallback);
+    let reportFinishedHandler = this.adapter.subscribe(AdapterEvent.RobustReportFinished, progressCallback);
+    let reportDisconnectedHandler = this.adapter.subscribe(AdapterEvent.Disconnected, disconnectCallback);
     
     do {
         await delay(500);
@@ -461,7 +447,12 @@ export class IOTileDevice {
         }
     } while (!isDoneReceiving);
 
-    this.reportCleanup();
+    //clean up subscriptions
+    reportStartedHandler();
+    reportStalledHandler();
+    reportProgressHandler();
+    reportFinishedHandler();
+    reportDisconnectedHandler();
 
     if (invalidReports > 0){
         reportCount = -1;
@@ -470,37 +461,6 @@ export class IOTileDevice {
     return reportCount;
   }
 
-  private reportCleanup() {
-    if (this.reportStartedHandler) {
-        this.reportStartedHandler();
-        this.reportStartedHandler = null;
-    }
-
-    if (this.reportStalledHandler) {
-        this.reportStalledHandler();
-        this.reportStalledHandler = null;
-    }
-
-    if (this.reportProgressHandler) {
-        this.reportProgressHandler();
-        this.reportProgressHandler = null;
-    }
-
-    if (this.reportFinishedHandler) {
-        this.reportFinishedHandler();
-        this.reportFinishedHandler = null;
-    }
-
-    if (this.reportDisconnectedHandler) {
-        this.reportDisconnectedHandler();
-        this.reportDisconnectedHandler = null;
-    }
-
-    if (this.receiveReportHandler) {
-      this.receiveReportHandler();
-      this.receiveReportHandler = null;
-  }
-  }
 
   public async receiveReports(options: ReceiveReportsOptions, progress?: ProgressNotifier): Promise<ReceiveReportsResult> {
     let result: ReceiveReportsResult = {reports: [], receivedFromAll: true, receivedExtra: false};
@@ -515,7 +475,7 @@ export class IOTileDevice {
     let subNotifier = progress.startOne(`Downloading Device Reports`, Object.keys(options.expectedStreamers).length);
 
     // get the triggered reports as they come in
-    this.receiveReportHandler = this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
+    let receiveReportHandler = this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
       try {
           let streamName = options.expectedStreamers[report.streamer];
           if (!streamName){
@@ -574,7 +534,10 @@ export class IOTileDevice {
       catAdapter.error(`[IOTileDevice] Failed to receive all required streamers`, new Error("Missing Required Report"));
       progress.fatalError(`Error receiving data. Reconnect to device and try upload again.`);
       throw new ReportParsingError(`Missing required report`);
-    } 
+    }
+
+    //clean up subscription
+    receiveReportHandler();
 
     return result;
   }
