@@ -2,8 +2,7 @@
  * Helper functions for creating and testing binary reports received from IOTile Devices
  */
 
-import {ArgumentError} from "iotile-common";
-import * as Utilities from "iotile-common";
+import * as Utilities from "@iotile/iotile-common";
 import {IndividualReport, SignatureStatus, SignedListReport, SignedReportSelectors } from "../../common/iotile-reports";
 import {createHashListReport} from "../utilities";
 

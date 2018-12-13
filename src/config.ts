@@ -11,3 +11,4 @@ export const catAdapter = new Category("IOTileAdapter", catService);
 export const catUTCAssigner = new Category('UTCAssigner', catService);
 export const catBLEOptimizer = new Category("BLEOptimizer", catService);
 export const catMockBLE = new Category("MockBLE", catService);
+export const catPOD1M = new Category("POD1M", catService);

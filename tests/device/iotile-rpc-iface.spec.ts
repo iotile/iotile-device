@@ -1,5 +1,5 @@
-import * as Errors from "iotile-common";
-import * as Utilities from "iotile-common";
+import * as Errors from "@iotile/iotile-common";
+import * as Utilities from "@iotile/iotile-common";
 import * as IOTileTypes from "../../src/common/iotile-types";
 import {IOTileRPCInterface, RPCError} from "../../src/device/iotile-iface-rpc";
 import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
@@ -11,11 +11,8 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
   let autoResponseChannel: any;
   let fatalErrorChannel: any;
 
-  let lastHeader: ArrayBuffer;
-  let lastPayload: ArrayBuffer;
-
-  let payloadHandler;
-  let headerHandler;
+  let payloadHandler: any;
+  let headerHandler: any;
 
 
   beforeEach(function() {
@@ -24,11 +21,11 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
 
     iface = new IOTileRPCInterface();
     channel = {
-        write: async function (char, value) {
+        write: async function (char: any, value: any) {
 
         },
 
-        subscribe: async function(char, handler) {
+        subscribe: async function(char: IOTileTypes.IOTileCharacteristic, handler: any) {
             if (char === IOTileTypes.IOTileCharacteristic.ReceivePayload) {
                 payloadHandler = handler;
             } else if (char === IOTileTypes.IOTileCharacteristic.ReceiveHeader) {
@@ -44,13 +41,13 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
 
     //Auto response to all RPCs with success and no data
     autoResponseChannel = {
-        write: async function (char, value) {
+        write: async function (char: IOTileTypes.IOTileCharacteristic, value: ArrayBuffer) {
           if (char == IOTileTypes.IOTileCharacteristic.SendHeader) {
             headerHandler(Utilities.packArrayBuffer("BBBB", 1 << 6, 0, 0, 0));
           }
         },
 
-        subscribe: async function(char, handler) {
+        subscribe: async function(char: IOTileTypes.IOTileCharacteristic, handler: any) {
             if (char === IOTileTypes.IOTileCharacteristic.ReceivePayload) {
                 payloadHandler = handler;
             } else if (char === IOTileTypes.IOTileCharacteristic.ReceiveHeader) {
@@ -66,13 +63,13 @@ describe('module: iotile.device, class: IOTileRPCInterface', function () {
 
     //Auto response to all RPCs with a fatal error
     fatalErrorChannel = {
-        write: async function (char, value) {
+        write: async function (char: IOTileTypes.IOTileCharacteristic, value: ArrayBuffer) {
           if (char == IOTileTypes.IOTileCharacteristic.SendHeader) {
             headerHandler(Utilities.packArrayBuffer("BBB", 1 << 6, 0, 0));
           }
         },
 
-        subscribe: async function(char, handler) {
+        subscribe: async function(char: IOTileTypes.IOTileCharacteristic, handler: any) {
             if (char === IOTileTypes.IOTileCharacteristic.ReceivePayload) {
                 payloadHandler = handler;
             } else if (char === IOTileTypes.IOTileCharacteristic.ReceiveHeader) {

@@ -1,4 +1,4 @@
-import {delay} from "iotile-common";
+import {delay} from "@iotile/iotile-common";
 import {IOTileAdapter} from "../../src/device/iotile-serv";
 import {AdapterState} from "../../src/common/iotile-types";
 import {catAdapter, catBLEOptimizer, catService} from "../../src/config";
@@ -267,7 +267,7 @@ describe('module: iotile.device, service: IOTileDeviceService', function () {
     }
     
     try {
-        let connectedDevice = await Adapter.connect(dev, null);
+        let connectedDevice = await Adapter.connect(dev, {});
     } catch (err) {
       done.fail(err);
     }

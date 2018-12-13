@@ -1,6 +1,6 @@
 import {IOTileAdvertisement} from "./iotile-advert-serv";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
-import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex, delay} from "iotile-common";
+import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex, delay} from "@iotile/iotile-common";
 import * as Errors from "../common/error-space";
 import {RawReading, SignedListReport, IOTileReport} from "../common/iotile-reports";
 import {AdapterEvent} from "../common/iotile-types";

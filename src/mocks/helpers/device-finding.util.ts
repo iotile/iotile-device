@@ -3,7 +3,7 @@
  */
 import {IOTileAdvertisement} from "../../device/iotile-advert-serv";
 
-export function findByDeviceID(id: number, devices: IOTileAdvertisement[]) {
+export function findByDeviceID(id: number, devices: IOTileAdvertisement[]): IOTileAdvertisement | null {
     let i = 0;
 
     for (i = 0; i < devices.length; ++i) {
@@ -11,8 +11,6 @@ export function findByDeviceID(id: number, devices: IOTileAdvertisement[]) {
         return devices[i];
       }
     }
-
-    if (i == devices.length) {
-      return null;
-    }
+    
+    return null;
 }

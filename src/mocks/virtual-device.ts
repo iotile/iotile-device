@@ -1,4 +1,4 @@
-import { ArgumentError, packArrayBuffer, unpackArrayBuffer } from "iotile-common";
+import { ArgumentError, packArrayBuffer, unpackArrayBuffer } from "@iotile/iotile-common";
 import { RPCNotFound } from "./errors";
 import { BasicControllerTile } from "./tiles/basic-controller";
 

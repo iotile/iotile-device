@@ -1,4 +1,4 @@
-import {packArrayBuffer, base64ToArrayBuffer} from "iotile-common";
+import {packArrayBuffer, base64ToArrayBuffer} from "@iotile/iotile-common";
 import {SignedReportSelectors} from "../common/iotile-reports";
 import * as CryptoJS from "crypto-js";
 
@@ -24,10 +24,11 @@ export interface Reading {
     value: number
 }
 
-export function createHashListReport (uuid: number, reportID: number, streamer: number, sentTime: number, readings: Reading[]) {
+export function createHashListReport (uuid: number, reportID: number, streamer: number, sentTime: number, readings: Reading[]): ArrayBuffer {
     var length = 20 + 24 + readings.length * 16;
     var selector;
-    var report = new Uint8Array(length);
+    let buffer = new ArrayBuffer(length)
+    var report = new Uint8Array(buffer);
     var lowestID = 0xFFFFFFFF;
     var highestID = 0;
   
@@ -69,5 +70,5 @@ export function createHashListReport (uuid: number, reportID: number, streamer: 
   
     report.set(new Uint8Array(signature.slice(0, 16)), signedLength);
   
-    return report.buffer;
+    return buffer;
 }

@@ -1,5 +1,5 @@
 import { SignedListReport, RawReading } from "./iotile-reports";
-import { ArgumentError, InvalidOperationError } from "iotile-common";
+import { ArgumentError, InvalidOperationError } from "@iotile/iotile-common";
 import { Category } from "typescript-logging";
 import { catUTCAssigner } from "../config";
 

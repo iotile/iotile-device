@@ -1,5 +1,5 @@
 import {InvalidAdvertisingData} from "../common/error-space";
-import {deviceIDToSlug} from "iotile-common";
+import {deviceIDToSlug} from "@iotile/iotile-common";
 import {Platform} from "../common/iotile-types";
 import { catAdapter } from "../config";
 

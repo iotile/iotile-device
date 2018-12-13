@@ -1,4 +1,4 @@
-import * as Utilities from "iotile-common";
+import * as Utilities from "@iotile/iotile-common";
 import {ReportParser, ReceiveStatus, ReportParserEvent, ReportProgressEvent} from "../../src/device/iotile-report-parser";
 import {createIndividualReport, expectIndividual, createSequentialReport, createReading, expectSequential} from "../../src/mocks/helpers/report-creation.util";
 import {createHashListReport} from "../../src/mocks/utilities";

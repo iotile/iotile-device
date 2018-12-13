@@ -16,7 +16,7 @@ export default {
   ],
   sourcemap: true,
   // Indicate here external modules you don't wanna include in your bundle (i.e.: 'lodash')
-  external: ['typescript-logging'],
+  external: ['typescript-logging', 'msgpack-lite'],
   watch: {
     include: 'src/**',
   },
@@ -33,6 +33,6 @@ export default {
     resolve(),
 
     // Resolve source maps to the original source
-    sourceMaps(),
+    sourceMaps()
   ],
 }

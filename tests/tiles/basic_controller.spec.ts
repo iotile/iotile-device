@@ -1,5 +1,5 @@
 import {BasicControllerTile} from "../../src/mocks/tiles/basic-controller";
-import { unpackArrayBuffer } from "iotile-common";
+import { unpackArrayBuffer } from "@iotile/iotile-common";
 
 function async_it(msg: string, func: () => Promise<void>) {
     it(msg, async (done) => {

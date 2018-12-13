@@ -7,7 +7,7 @@ describe('module: iotile.device, class: IOTileStreamingInterface', function () {
 	let iface: IOTileStreamingInterface;
 	let channel: any;
 
-	let streamingHandler;
+	let streamingHandler: any;
 
 	beforeEach(function () {
         setupMockBLE({});
@@ -18,11 +18,11 @@ describe('module: iotile.device, class: IOTileStreamingInterface', function () {
 
 		iface = new IOTileStreamingInterface(64*1024);
 		channel = {
-            write: async function (char, value) {
+            write: async function (char: any, value: any) {
 
             },
 
-            subscribe: async function(char, handler) {
+            subscribe: async function(char: any, handler: any) {
                 if (char === IOTileCharacteristic.Streaming) {
                     streamingHandler = handler;
                 } else {
