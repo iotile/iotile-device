@@ -1,4 +1,4 @@
-import {mapStreamName} from "iotile-common";
+import {mapStreamName} from "@iotile/iotile-common";
 import {MockBLEDevice, MockDeviceArgs} from "../mock-ble-device";
 import {VirtualDevice} from "../virtual-device";
 import {BasicControllerTile} from "../tiles/basic-controller"; 

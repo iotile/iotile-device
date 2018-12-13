@@ -1,5 +1,5 @@
 import {SignedListReport, SignedReportSelectors, SignatureStatus, RawReading, COMBINED_REPORT_STREAMER} from "./iotile-reports";
-import {ArgumentError, packArrayBuffer, copyArrayBuffer, SHA256Calculator} from "iotile-common";
+import {ArgumentError, packArrayBuffer, copyArrayBuffer, SHA256Calculator} from "@iotile/iotile-common";
 
 interface ReadingList {
     readings: RawReading[];

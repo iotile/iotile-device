@@ -1,5 +1,5 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
-import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "iotile-common";
+import {SHA256Calculator, unpackArrayBuffer, packArrayBuffer, ArgumentError, numberToHexString} from "@iotile/iotile-common";
 import { ReportReassembler } from "./report-reassembler";
 import { catService } from "../config";
 

@@ -1,4 +1,3 @@
-import {RingBuffer} from "../../src/common/ring-buffer";
 import {StreamingTimeoutError} from "../../src/common/error-space";
 import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
 import {IOTileCharacteristic} from "../../src/common/iotile-types";
@@ -8,7 +7,7 @@ describe('module: iotile.device, class: IOTileTracingInterface', function () {
 	let iface: IOTileTracingInterface;
 	let channel: any;
 
-	let streamingHandler: (ArrayBuffer) => void;
+	let streamingHandler: any;
 
 	beforeEach(function () {
         setupMockBLE({});
@@ -19,11 +18,11 @@ describe('module: iotile.device, class: IOTileTracingInterface', function () {
 
 		iface = new IOTileTracingInterface();
 		channel = {
-            write: async function (char, value) {
+            write: async function (char: IOTileCharacteristic, value: ArrayBuffer) {
 
             },
 
-            subscribe: async function(char, handler) {
+            subscribe: async function(char: IOTileCharacteristic, handler: ((array: ArrayBuffer) => void) | null) {
                 if (char === IOTileCharacteristic.Tracing) {
                     streamingHandler = handler;
                 } else {

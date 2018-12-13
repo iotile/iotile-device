@@ -1,7 +1,7 @@
 import {RingBuffer} from "../common/ring-buffer";
 import * as Errors from "../common/error-space";
 import {RawReading, IndividualReport, SignedListReport, SignatureStatus} from "../common/iotile-reports";
-import {unpackArrayBuffer} from "iotile-common";
+import {unpackArrayBuffer} from "@iotile/iotile-common";
 
 export enum ReceiveStatus {
     Idle = 0,
@@ -153,7 +153,7 @@ export class ReportParser {
      *                                         to hold the data for processing.
      */
 
-    public pushData(chunk: ArrayBuffer) {
+    public pushData(chunk: ArrayBuffer | SharedArrayBuffer) {
         if (this.broken) {
             throw new Errors.ReportParsingStoppedError('attempting to push data to a stopped report parser');
         }

@@ -32,7 +32,7 @@
  */
 
 import { SignedReportHeader, StreamSelector, SignedListReport } from "./iotile-reports";
-import { SHA256Calculator, unpackArrayBuffer, copyArrayBuffer, ArgumentError, InvalidOperationError } from "iotile-common";
+import { SHA256Calculator, unpackArrayBuffer, copyArrayBuffer, ArgumentError, InvalidOperationError } from "@iotile/iotile-common";
 
 export interface DecodedChunk {
     streams: (number | null)[],

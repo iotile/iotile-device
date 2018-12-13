@@ -1,17 +1,18 @@
 import {IOTileDevice} from "../../src/device/iotile-device";
 import {IOTileAdapter}  from "../../src/device/iotile-serv";
+import { IOTileAdvertisement } from "../../src/device/iotile-advert-serv";
 
 describe('module: iotile.device, IOTileDevice', function () {
     let device: IOTileDevice;
-    let adapter;
-    let advert;
+    let adapter: any;
+    let advert: any;
     let secondsAt2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
 
     beforeEach(function () {
         adapter = {};
         advert = {};
 
-        device = new IOTileDevice(adapter, advert);
+        device = new IOTileDevice(<IOTileAdapter>adapter, <IOTileAdvertisement>advert);
         // @ts-ignore
         device.adapter.typedRPC = function(){};
         // @ts-ignore

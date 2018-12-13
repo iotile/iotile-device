@@ -3,13 +3,14 @@ import {ReportReassembler} from "../../src/common/report-reassembler";
 function createArrayBuffer(base64Data: string): ArrayBuffer {
     var raw = window.atob(base64Data);
     var rawLength = raw.length;
-    var array = new Uint8Array(new ArrayBuffer(rawLength));
+    var buffer = new ArrayBuffer(rawLength);
+    var array = new Uint8Array(buffer);
 
     for(let i = 0; i < rawLength; i++) {
         array[i] = raw.charCodeAt(i);
     }
 
-    return array.buffer;
+    return buffer;
 }
 
 function convertErrorList(errors: any[]): any {

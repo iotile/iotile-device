@@ -27,7 +27,7 @@
  *   If those objects need to be included in an exception, they should be passed as parameters
  *   to the appropriate Error subclass.
  */
-import {BaseError} from "iotile-common";
+import {BaseError} from "@iotile/iotile-common";
 import {UserRedirectionInfo, AdapterState} from "./iotile-types";
 
 /**

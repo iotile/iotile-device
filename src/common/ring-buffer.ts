@@ -1,4 +1,4 @@
-import {unpackArrayBuffer, copyArrayBuffer, expectedBufferSize, InsufficientSpaceError} from "iotile-common";
+import {unpackArrayBuffer, copyArrayBuffer, expectedBufferSize, InsufficientSpaceError} from "@iotile/iotile-common";
 import {RingBufferEmptyError} from "./error-space";
 
 /**
@@ -64,7 +64,7 @@ export class RingBuffer {
      * @throws {InsufficientSpaceError} There is an internal max ringbuffer size.  If this is exceeded,
      *                                         an error is thrown.
      */
-    public push(chunk: ArrayBuffer) {
+    public push(chunk: ArrayBuffer | SharedArrayBuffer) {
         let chunkLength = chunk.byteLength;
 
         if ((chunkLength + this._count) > this.ringBuffer.byteLength) {
