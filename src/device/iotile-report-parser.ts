@@ -2,7 +2,6 @@ import {RingBuffer} from "../common/ring-buffer";
 import * as Errors from "../common/error-space";
 import {RawReading, IndividualReport, SignedListReport, SignatureStatus, IOTileReport} from "../common/iotile-reports";
 import {unpackArrayBuffer} from "@iotile/iotile-common";
-import { throws } from "assert";
 
 export enum ReceiveStatus {
     Idle = 0,
@@ -110,9 +109,9 @@ export class ReportParser {
         this._inProgressReceived = 0;
         this._inProgressTotal = 0;
         this._lastProgressReport = 0;
-        this._reportsReceived = 0;
         this._lastEvent = null;
         this._lastUpdateTime = null;
+        this._reportsReceived = 0;
         this._receivedTime = null;
         this._lastUpdateTime = null;
         this._progressReportInterval = 5;
@@ -183,9 +182,9 @@ export class ReportParser {
         this._inProgressReceived = 0;
         this._inProgressTotal = 0;
         this._lastProgressReport = 0;
-        this._reportsReceived = 0;
         this._lastEvent = null;
         this._lastUpdateTime = null;
+        this._reportsReceived = 0;
     }
 
     /**
@@ -336,6 +335,7 @@ export class ReportParser {
         }
 
         let totalReport = this.ringBuffer.pop(totalLength);
+
         this.updateStatus(false, 0, 0);
 
         let report: SignedListReport | null = new SignedListReport(uuid, originStreamer, totalReport, this._receivedTime);
@@ -355,7 +355,6 @@ export class ReportParser {
             this._lastEvent = new ReportInvalidEvent(report.streamer, totalReport);
             report = null;
         }
-
         this._reportsReceived += 1;
 
         return report;    
