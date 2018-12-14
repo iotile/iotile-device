@@ -21,8 +21,6 @@ export class EventManager {
     }
 
     public triggerCallback(event: string, args: any){
-        catNotify.info(`Triggering callback for: ${event}`);
-
         for (let callback in this.callbacks){
             try {
                 this.callbacks[callback](event, args);
