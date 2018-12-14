@@ -1,6 +1,6 @@
 # Release Notes for iotile-device
 
-## HEAD
+## 0.0.22
 
 - Fixed #29.  Reassembled reports did not have their id range updated causing iotile companion
   to not properly mark them as acknowledged.
