@@ -1,5 +1,10 @@
 # Release Notes for iotile-device
 
+## HEAD
+
+- Update typescript-logging format to not include error message stack trace to avoid
+  issues with sentry error grouping.
+
 ## 0.0.22
 
 - Fixed #29.  Reassembled reports did not have their id range updated causing iotile companion
