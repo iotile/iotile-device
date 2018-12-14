@@ -354,7 +354,7 @@ export class ReportParser {
          * know that they should send an Invalid report error.
          */
         if (report.validity == SignatureStatus.Invalid) {
-            this._lastEvent = new ReportInvalidEvent(report.streamer, totalReport);
+            this._lastEvent = new ReportInvalidEvent(this._reportReceived, totalReport);
             report = null;
         }
 
