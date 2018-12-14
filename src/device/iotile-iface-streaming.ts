@@ -95,7 +95,7 @@ export class IOTileStreamingInterface {
                 //Ignore further errors if we've already reported that streaming has been stopped
                 //due to an error.
             } else {
-                catStreaming.error("Unkown error processing a streasmed report", err);
+                catStreaming.error("Unknown error processing a streamed report", err);
             }
         }
     }
