@@ -1,5 +1,15 @@
 # Release Notes for iotile-device
 
+## HEAD
+
+- Fixed #29.  Reassembled reports did not have their id range updated causing iotile companion
+  to not properly mark them as acknowledged.
+- Fixed #32.  When an invalid report is too corrupted to properly reassemble, it incorrectly
+  causes the app to also disconnect the user from the device because it thinks there was an
+  interruption in the streaming process.
+- Fixed #31.  If an invalid report cannot be fixed, it is added as an `undefined` to the list
+  of reports returned by reportParser and still triggers a `RobustReportReceived` event.
+
 ## 0.0.21 (12/13/2018)
 
 - Move POD-1M download functionality into POD1M class so that it can be shared among
