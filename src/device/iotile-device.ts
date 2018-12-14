@@ -401,11 +401,7 @@ export class IOTileDevice {
 
             default:
             reportType = 'Unknown';
-            if (event.name == 'ReportFinishedEvent'){
-              throw new Error(`Unknown report type: report index is ${event.reportIndex}`);
-            } else {
-              break;
-            }
+            break;
         }
 
         if (event.name == 'ReportInvalidEvent') {
