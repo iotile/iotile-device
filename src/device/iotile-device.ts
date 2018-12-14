@@ -381,31 +381,14 @@ export class IOTileDevice {
     let isDoneReceiving: boolean = true;
     let reportInProgress: boolean = false;
     let reportPercentage: number = 0;
-    let reportType: string | null = null;
     let reportCount: number = 0;
     let invalidReports: number = 0;
 
     let progressCallback = function (eventName: string, event: ReportParserEvent) {
-        switch(event.reportIndex){
-            case (0):
-            reportType = "Environmental";
-            break;
-
-            case (1):
-            reportType = "System";
-            break;
-
-            case (2):
-            reportType = "Trip";
-            break;
-
-            default:
-            throw new Error(`Unknown report type: report index is ${event.reportIndex}`);
-        }
 
         if (event.name == 'ReportInvalidEvent') {
             invalidReports += 1;
-            throw new ReportParsingError(`Received ${reportType} report with invalid signature`);
+            throw new ReportParsingError(`Received report with invalid signature`);
         }
 
         if (event.finishedPercentage === 100) {
@@ -413,9 +396,9 @@ export class IOTileDevice {
             reportPercentage = event.finishedPercentage;
             reportCount += 1;
             notifier.finishOne();
-            notifier.updateDescription(`Successfully received ${reportType} report`);        
+            notifier.updateDescription(`Successfully received report`);        
         } else if (event.name == 'ReportStalledEvent') {
-            throw new Errors.ReportParsingStoppedError(`Report parsing stalled on ${reportType} report`);
+            throw new Errors.ReportParsingStoppedError(`Report parsing stalled on report`);
         } else {
             reportInProgress = true;
             reportPercentage = event.finishedPercentage;
@@ -425,7 +408,6 @@ export class IOTileDevice {
     let disconnectCallback = function (eventName: string, event: ReportParserEvent) {
         reportInProgress = false;
         reportPercentage = 0;
-        reportType = null;
     }
 
     let reportStartedHandler = this.adapter.subscribe(AdapterEvent.RobustReportStarted, progressCallback);
@@ -443,7 +425,7 @@ export class IOTileDevice {
                 break;
             }
         } else {
-            notifier.updateDescription("Receiving " + reportType + " Data: " + reportPercentage + "% Done");
+            notifier.updateDescription("Receiving report" + " Data: " + reportPercentage + "% Done");
         }
     } while (!isDoneReceiving);
 
