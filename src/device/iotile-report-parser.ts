@@ -2,6 +2,7 @@ import {RingBuffer} from "../common/ring-buffer";
 import * as Errors from "../common/error-space";
 import {RawReading, IndividualReport, SignedListReport, SignatureStatus, IOTileReport} from "../common/iotile-reports";
 import {unpackArrayBuffer} from "@iotile/iotile-common";
+import { throws } from "assert";
 
 export enum ReceiveStatus {
     Idle = 0,
@@ -376,9 +377,9 @@ export class ReportParser {
         if (inProgress && this._receiveState != ReceiveStatus.InProgress && receivedSize < totalSize) {
             //If we are just starting a report (and have not received the entire thing)
             this._lastEvent = new ReportStartedEvent(totalSize, this._reportsReceived);
-        } else if (!inProgress && this._receiveState == ReceiveStatus.InProgress) {
+        } else if (!inProgress && this._receiveState == ReceiveStatus.InProgress && this._lastReportReceived) {
             //If we finished a report, send a finished event
-            this._lastEvent = new ReportFinishedEvent(this._reportsReceived);
+            this._lastEvent = new ReportFinishedEvent(this._lastReportReceived);
         } else if (inProgress && this._inProgressReceived != receivedSize) {
             //See if we have received enough data to qualify for producing another progress event
             let lastPercentage = this._lastProgressReport / this._inProgressTotal * 100;
