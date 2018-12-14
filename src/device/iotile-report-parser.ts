@@ -98,7 +98,7 @@ export class ReportParser {
     private _inProgressReceived: number;
     private _lastProgressReport: number;
     private _lastEvent: ReportParserEvent | null;
-    private _reportsReceived: number;
+    private _reportReceived: number | null;
 
     private _progressReportInterval: number;
 
@@ -111,7 +111,7 @@ export class ReportParser {
         this._lastProgressReport = 0;
         this._lastEvent = null;
         this._lastUpdateTime = null;
-        this._reportsReceived = 0;
+        this._reportReceived = null;
         this._receivedTime = null;
         this._lastUpdateTime = null;
         this._progressReportInterval = 5;
@@ -184,7 +184,7 @@ export class ReportParser {
         this._lastProgressReport = 0;
         this._lastEvent = null;
         this._lastUpdateTime = null;
-        this._reportsReceived = 0;
+        this._reportReceived = null;
     }
 
     /**
@@ -339,7 +339,9 @@ export class ReportParser {
         this.updateStatus(false, 0, 0);
 
         let report: SignedListReport | null = new SignedListReport(uuid, originStreamer, totalReport, this._receivedTime);
-            
+        // keep track of the report's streamer index
+        this._reportReceived = report.streamer;
+        
         /**
          * Clear the received time so that when the next report comes in we trigger ourselves to stamp it again
          * see the lines at the beginning of this function.
@@ -352,11 +354,9 @@ export class ReportParser {
          * know that they should send an Invalid report error.
          */
         if (report.validity == SignatureStatus.Invalid) {
-            this._lastEvent = new ReportInvalidEvent(this._reportsReceived, totalReport);
+            this._lastEvent = new ReportInvalidEvent(report.streamer, totalReport);
             report = null;
         }
-        
-        this._reportsReceived += 1;
 
         return report;    
     }
@@ -368,12 +368,12 @@ export class ReportParser {
      * no progress will be reported.  
      */
     private updateStatus(inProgress: boolean, totalSize: number, receivedSize: number) {
-        if (inProgress && this._receiveState != ReceiveStatus.InProgress && receivedSize < totalSize) {
+        if (inProgress && this._receiveState != ReceiveStatus.InProgress && receivedSize < totalSize && this._reportReceived) {
             //If we are just starting a report (and have not received the entire thing)
-            this._lastEvent = new ReportStartedEvent(totalSize, this._reportsReceived);
-        } else if (!inProgress && this._receiveState == ReceiveStatus.InProgress) {
+            this._lastEvent = new ReportStartedEvent(totalSize, this._reportReceived);
+        } else if (!inProgress && this._receiveState == ReceiveStatus.InProgress && this._reportReceived) {
             //If we finished a report, send a finished event
-            this._lastEvent = new ReportFinishedEvent(this._reportsReceived);
+            this._lastEvent = new ReportFinishedEvent(this._reportReceived);
         } else if (inProgress && this._inProgressReceived != receivedSize) {
             //See if we have received enough data to qualify for producing another progress event
             let lastPercentage = this._lastProgressReport / this._inProgressTotal * 100;
@@ -382,8 +382,8 @@ export class ReportParser {
             let lastProgress = Math.floor(lastPercentage / this._progressReportInterval);
             let currentProgress = Math.floor(currentPercentage / this._progressReportInterval);
 
-            if (currentProgress != lastProgress) {
-                this._lastEvent = new ReportProgressEvent(currentProgress*this._progressReportInterval, this._reportsReceived);
+            if (currentProgress != lastProgress && this._reportReceived) {
+                this._lastEvent = new ReportProgressEvent(currentProgress*this._progressReportInterval, this._reportReceived);
                 this._lastProgressReport = receivedSize;
             }
         } else if (inProgress && this._receiveState != ReceiveStatus.InProgress && receivedSize == totalSize) {
