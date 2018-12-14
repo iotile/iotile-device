@@ -26,7 +26,7 @@ export class SignedListReportMerger {
         
         this.insertMergedFooter(merged, readings.lowestID, readings.highestID);
         
-        return new SignedListReport(system.header.uuid, COMBINED_REPORT_STREAMER, readings.readings, merged, system.receivedTime);
+        return new SignedListReport(system.header.uuid, COMBINED_REPORT_STREAMER, merged, system.receivedTime);
     }
 
     private checkReportsForMerging(user: SignedListReport, system: SignedListReport) {

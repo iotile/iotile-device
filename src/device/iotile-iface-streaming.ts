@@ -1,7 +1,8 @@
 ///<reference path="../../typings/cordova_plugins.d.ts"/>
-import {catService} from "../config";
+import {catStreaming} from "../config";
 import * as IOTileTypes from "../common/iotile-types";
 import {ReportParser} from "./iotile-report-parser";
+import {SignedListReport, IndividualReport} from "../common/iotile-reports";
 
 export class IOTileStreamingInterface {
     private channel: IOTileTypes.BLEChannel | undefined;
@@ -17,9 +18,8 @@ export class IOTileStreamingInterface {
         this.channel = channel;
         this.reportParser.reset();
 
-        let that = this;
-        this.removeStreamingHandler = await this.channel.subscribe(IOTileTypes.IOTileCharacteristic.Streaming, function(value: ArrayBuffer) {
-            that.receiveStreamingData(value);
+        this.removeStreamingHandler = await this.channel.subscribe(IOTileTypes.IOTileCharacteristic.Streaming, (value: ArrayBuffer) => {
+            this.receiveStreamingData(value);
         });
     }
 
@@ -36,63 +36,66 @@ export class IOTileStreamingInterface {
     }
 
     private receiveStreamingData(value: ArrayBuffer) {
-        if (this.channel){
-            try {
-                let reports = this.reportParser.pushData(value);
-                let event = this.reportParser.popLastEvent();
-    
-                if (event !== null) {
-                    switch (event.name) {
-                        case 'ReportStartedEvent':
-                        this.channel.notify(IOTileTypes.AdapterEvent.RobustReportStarted, event);
-                        break;
-    
-                        case 'ReportStalledEvent':
-                        this.channel.notify(IOTileTypes.AdapterEvent.RobustReportStalled, event);
-                        break;
+        if (this.channel == null) {
+            return;
+        }
 
-                        case 'ReportInvalidEvent':
-                        this.channel.notify(IOTileTypes.AdapterEvent.RobustReportInvalid, event);
-                        break;
-    
-                        case 'ReportProgressEvent':
-                        this.channel.notify(IOTileTypes.AdapterEvent.RobustReportProgress, event);
-                        break;
-    
-                        case 'ReportFinishedEvent':
-                        this.channel.notify(IOTileTypes.AdapterEvent.RobustReportFinished, event);
-                        break;
+        try {
+            let reports = this.reportParser.pushData(value);
+            let event = this.reportParser.popLastEvent();
+
+            if (event !== null) {
+                switch (event.name) {
+                    case 'ReportStartedEvent':
+                    this.channel.notify(IOTileTypes.AdapterEvent.RobustReportStarted, event);
+                    break;
+
+                    case 'ReportStalledEvent':
+                    this.channel.notify(IOTileTypes.AdapterEvent.RobustReportStalled, event);
+                    break;
+
+                    case 'ReportInvalidEvent':
+                    this.channel.notify(IOTileTypes.AdapterEvent.RobustReportInvalid, event);
+                    break;
+
+                    case 'ReportProgressEvent':
+                    this.channel.notify(IOTileTypes.AdapterEvent.RobustReportProgress, event);
+                    break;
+
+                    case 'ReportFinishedEvent':
+                    this.channel.notify(IOTileTypes.AdapterEvent.RobustReportFinished, event);
+                    break;
+                }
+            }
+
+            for (let i = 0; i < reports.length; ++i) {
+                let report = reports[i];
+
+                if (report instanceof IndividualReport) {
+                    try {
+                        this.channel.notify(IOTileTypes.AdapterEvent.RawRealtimeReading, report);
+                    } catch (err) {
+                        catStreaming.error("Error notifying a callback for an individual report", err);
                     }
-                }
-    
-                for (let i = 0; i < reports.length; ++i) {
-                    let report = reports[i];
-    
-                    if (report.constructor.name === 'IndividualReport') {
-                        try {
-                            this.channel.notify(IOTileTypes.AdapterEvent.RawRealtimeReading, report);
-                        } catch (err){
-                            catService.error("[Streaming Interface] ", err);
-                        }
-                    } else if (report.constructor.name === 'SignedListReport') {
-                        try {
-                            this.channel.notify(IOTileTypes.AdapterEvent.RawRobustReport, report);
-                        } catch (err){
-                            catService.error("[Streaming Interface] ", err);
-                        }
-                    } else {
-                        //There should not be any other type of report that can be returned
-                        //by the report parser but at least log a warning about this
-                        console.warn('Unknown report type received from ReportParser, ignoring it.  Type: ' + report.constructor.name);
+                } else if (report instanceof SignedListReport) {
+                    try {
+                        this.channel.notify(IOTileTypes.AdapterEvent.RawRobustReport, report);
+                    } catch (err) {
+                        catStreaming.error("Error notifying a callback for a robust report", err);
                     }
+                } else {
+                    //There should not be any other type of report that can be returned by the report parser but at least log a warning about this
+                    catStreaming.warn('Unknown report type received from ReportParser, ignoring it.  Type: ' + report.constructor.name);
                 }
-            } catch (err) {
-                if (err.name === 'ReportParsingError' || err.name === 'InsufficientSpaceError') {
-                    this.channel.notify(IOTileTypes.AdapterEvent.UnrecoverableStreamingError, err);
-                } else if (err.name === 'ReportParsingStoppedError') {
-                    //Ignore further errors if we've already reported that streaming has been stopped
-                    //due to an error.
-                }
+            }
+        } catch (err) {
+            if (err.name === 'ReportParsingError' || err.name === 'InsufficientSpaceError') {
+                this.channel.notify(IOTileTypes.AdapterEvent.UnrecoverableStreamingError, err);
+            } else if (err.name === 'ReportParsingStoppedError') {
+                //Ignore further errors if we've already reported that streaming has been stopped
+                //due to an error.
+            } else {
+                catStreaming.error("Unknown error processing a streamed report", err);
             }
         }
     }

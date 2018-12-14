@@ -7,7 +7,7 @@ import {IOTileRPCInterface} from "./iotile-iface-rpc";
 import {IOTileScriptInterface} from "./iotile-iface-script";
 import {IOTileStreamingInterface} from "./iotile-iface-streaming";
 import {IOTileTracingInterface} from "./iotile-iface-tracing";
-import {ArgumentError, UnknownKeyError, packArrayBuffer, unpackArrayBuffer, delay, OperationMessage, ProgressNotifier} from "@iotile/iotile-common";
+import {ArgumentError, UnknownKeyError, packArrayBuffer, unpackArrayBuffer, delay, BaseError} from "@iotile/iotile-common";
 import {BLEConnectionOptimizer} from "./iotile-ble-optimizer";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
 import {IOTileDevice} from "./iotile-device";
@@ -147,7 +147,12 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     this.adapterEventNames[AdapterEvent.RobustReportStalled] = "adapter_robustreportstalled";
     this.adapterEventNames[AdapterEvent.RobustReportProgress] = "adapter_robustreportprogress";
     this.adapterEventNames[AdapterEvent.RobustReportFinished] = "adapter_robustreportfinished";
+    this.adapterEventNames[AdapterEvent.RobustReportInvalid] = "adapter_robustreportinvalid";
+    this.adapterEventNames[AdapterEvent.StreamingInterrupted] = "adapter_streaminginterrupted";
 
+    if (Object.keys(this.adapterEventNames).length !== AdapterEvent.Length) {
+      throw new BaseError("UnrecoverableError", "IOTileAdapter has not assigned all adapter events.  This is an internal coding error.");
+    }
     /*
       * We internally manage all notifications on characteristics using a pub/sub
       * listener scheme to allow multiple people to act on the data coming in

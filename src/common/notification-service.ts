@@ -1,5 +1,5 @@
 import { guid, UnknownKeyError} from "@iotile/iotile-common";
-import {catService} from "../config";
+import {catNotify} from "../config";
 
 export abstract class AbstractNotificationService {
     public abstract subscribe(event: string, callback: (string: string, any: any) => void): any;
@@ -25,7 +25,7 @@ export class EventManager {
             try {
                 this.callbacks[callback](event, args);
             } catch(err) {
-                catService.error("Could not trigger notification callback: ", err);
+                catNotify.error("Could not trigger notification callback: ", err);
             }       
         }
     }

@@ -56,7 +56,7 @@ describe('class: ReportReassembler', () => {
         let testReportData = require("./test-data/2018-07-26T12_57_21.728491Z--kale.b64");
         testReportData = duplicateBuffer(testReportData);
 
-        let report = new SignedListReport(1, 0, [], testReportData, new Date());
+        let report = new SignedListReport(1, 0, testReportData, new Date());
         expect(report.validity).toEqual(SignatureStatus.Valid);
         expect(report.readings.length).toEqual(98);
 

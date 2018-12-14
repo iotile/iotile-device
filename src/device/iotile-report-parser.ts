@@ -1,6 +1,6 @@
 import {RingBuffer} from "../common/ring-buffer";
 import * as Errors from "../common/error-space";
-import {RawReading, IndividualReport, SignedListReport, SignatureStatus} from "../common/iotile-reports";
+import {RawReading, IndividualReport, SignedListReport, SignatureStatus, IOTileReport} from "../common/iotile-reports";
 import {unpackArrayBuffer} from "@iotile/iotile-common";
 
 export enum ReceiveStatus {
@@ -54,8 +54,12 @@ export class ReportFinishedEvent extends ReportParserEvent {
 }
 
 export class ReportInvalidEvent extends ReportParserEvent {
-    constructor(reportIndex: number) {
+    readonly rawData: ArrayBuffer;
+
+    constructor(reportIndex: number, rawData: ArrayBuffer) {
         super('ReportInvalidEvent', 100, reportIndex);
+
+        this.rawData = rawData;
     }
 }
 
@@ -241,7 +245,10 @@ export class ReportParser {
         try {
             while (true) {
                 let report = this.tryParseReport();
-                reports.push(report)
+
+                if (report != null) {
+                    reports.push(report);
+                }
             }
         } catch (err) {
             if (err.name == 'RingBufferEmptyError') {
@@ -309,16 +316,11 @@ export class ReportParser {
      * internal state variable _receivedTime that we set to the current time when
      * we start receiving a report and to null when we're done processing a report.
      */
-    private tryParseListReport() {
+    private tryParseListReport(): (IOTileReport | null) {
         let header = this.ringBuffer.peekAs("BBHLLLBBH");
-        let format = header[0];
         let totalLength = (header[1] | (header[2] << 8));
         let uuid = header[3];
-        let reportID = header[4];
-        let sentTimestamp = header[5];
-        let signatureFlags = header[6];
         let originStreamer = header[7];
-        let streamerSelector = header[8];
 
         //If we got this far, then we're in the process of receiving a signed report
         //Only update our status if we did not receive the entire report in one shot
@@ -333,37 +335,29 @@ export class ReportParser {
         }
 
         let totalReport = this.ringBuffer.pop(totalLength);
-        let onTime = new Date(this._receivedTime.valueOf() - (sentTimestamp*1000));
 
         this.updateStatus(false, 0, 0);
 
-        //Now decode and parse the actual readings in the report
-        let allReadingsData = totalReport.slice(20, totalLength - 24);
-        let readings = []
+        let report: SignedListReport | null = new SignedListReport(uuid, originStreamer, totalReport, this._receivedTime);        
+        /**
+         * Clear the received time so that when the next report comes in we trigger ourselves to stamp it again
+         * see the lines at the beginning of this function.
+         */
+        this._receivedTime = null;
 
-        for (let i = 0; i < allReadingsData.byteLength; i += 16) {
-            let readingData = allReadingsData.slice(i, i+16);
-            let reading = unpackArrayBuffer("HHLLL", readingData);
-            let stream = reading[0]; //reading[1] is reserved
-            let readingID = reading[2];
-            let readingTimestamp = reading[3];
-            let readingValue = reading[4];
-
-            let parsedReading = new RawReading(stream, readingValue, readingTimestamp, onTime, readingID);
-            readings.push(parsedReading);
+        /**
+         * If the report has a corrupt signature, do not return it since we know that it is 
+         * not recoverable.  We update the lastEvent so that people calling popLastEvent
+         * know that they should send an Invalid report error.
+         */
+        if (report.validity == SignatureStatus.Invalid) {
+            this._lastEvent = new ReportInvalidEvent(this._reportsReceived, totalReport);
+            report = null;
         }
 
-        let rep = new SignedListReport(uuid, originStreamer, readings, totalReport, this._receivedTime);
-        if (rep.validity == SignatureStatus.Invalid) {
-            this._lastEvent = new ReportInvalidEvent(this._reportsReceived);
-        } else {
-            this._reportsReceived += 1;
-        
-            //Clear the received time so that when the next report comes in we trigger ourselves to stamp it again
-            //see the lines at the beginning of this function.
-            this._receivedTime = null;
-            return rep;
-        }    
+        this._reportsReceived += 1;
+
+        return report;    
     }
 
     /**
