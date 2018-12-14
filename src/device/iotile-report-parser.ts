@@ -338,8 +338,7 @@ export class ReportParser {
 
         this.updateStatus(false, 0, 0);
 
-        let report: SignedListReport | null = new SignedListReport(uuid, originStreamer, totalReport, this._receivedTime);
-        
+        let report: SignedListReport | null = new SignedListReport(uuid, originStreamer, totalReport, this._receivedTime);        
         /**
          * Clear the received time so that when the next report comes in we trigger ourselves to stamp it again
          * see the lines at the beginning of this function.
@@ -352,9 +351,10 @@ export class ReportParser {
          * know that they should send an Invalid report error.
          */
         if (report.validity == SignatureStatus.Invalid) {
-            this._lastEvent = new ReportInvalidEvent(report.streamer, totalReport);
+            this._lastEvent = new ReportInvalidEvent(this._reportsReceived, totalReport);
             report = null;
         }
+
         this._reportsReceived += 1;
 
         return report;    
