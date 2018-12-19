@@ -9,6 +9,7 @@ import { WINDOW_BITS, LOOKAHEAD_BITS, INPUT_BUFFER_LENGTH, SAMPLING_RATE } from 
 import { summarizeWaveform, unpackVLEIntegerList } from "./utilities";
 import { IOTileEvent } from "../../common/flexible-dict-report"
 import { HeatshrinkDecoder } from "heatshrink-ts";
+import { SignedListReport } from "../../common/iotile-reports";
 
 
 export class POD1M extends LoggingBase {
@@ -220,6 +221,22 @@ export class POD1M extends LoggingBase {
         return true;
     }
 
+    // {x.value: x.reading_id for x in user_report.visible_readings if x.stream == 0x5020}
+    private createWaveMap(reports: SignedListReport[]): {[key: number]: number} {
+        let waveMap: {[key: number]: number} = {};
+
+        for (let report of reports){
+            if (report.streamer == 0){
+                for (let reading of report.readings){
+                    if (reading.stream == 0x5020){
+                        waveMap[reading.value] = reading.id;
+                    }
+                }
+            }
+        } 
+        return waveMap;
+    }
+
     /*
      * Create IOTileEvent entries from the raw decoded data and the associated waveform metadata
      */
@@ -262,6 +279,13 @@ export class POD1M extends LoggingBase {
                 };
                 let summaryData = summarizeWaveform(waveformData);
 
+                let waveMap = this.createWaveMap(received.reports);
+                let readingId = waveMap[uniqueId];
+                
+                if (!readingId){
+                    this.logError("Could not assign waveform timestamp: no matching user report");
+                }
+
                 // Make sure each waveform has a UTC timestamp
                 let UTCTimestamp = waveforms[uniqueId].timestamp;
                 if (!!(UTCTimestamp & (1 << 31)) === true){
@@ -270,7 +294,7 @@ export class POD1M extends LoggingBase {
                     this.logInfo('Did not receive UTC from device; assigning UTC Timestamp');
                     
                     try {
-                        let date = assigner.assignUTCTimestamp(+uniqueId, UTCTimestamp);
+                        let date = assigner.assignUTCTimestamp(readingId, UTCTimestamp);
                         this.logInfo(`Assigned timestamp for waveform: ${date.toISOString()}`);
                         let secondsSince2000 = convertToSecondsSince2000(date);
                         UTCTimestamp = secondsSince2000;
@@ -279,10 +303,7 @@ export class POD1M extends LoggingBase {
                     }
                 }
 
-                // get waveforms, check ids -> convert to actual with mapping
-                // assign timestamps
-                // drop any waveforms that couldn't be assigned timestamps
-
+                // TODO: check IOTileEvent signature (device_timestamp vs. timestamp)
                 let event = new IOTileEvent(streamID, UTCTimestamp, summaryData, waveformData, +uniqueId);
                 events.push(event);
             }
