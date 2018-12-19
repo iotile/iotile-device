@@ -59,24 +59,13 @@ export class POD1M extends LoggingBase {
     }
 
     public async downloadData(progress: ProgressNotifier): Promise<[ReceiveReportsResult, IOTileEvent[]]> {
-        progress.startOne('Requesting Summary Data', 2);
-        let options: ReceiveReportsOptions;
-        options = { expectedStreamers: {0:'Environmental', 1:'System', 2:'Trip'},
-                              requireAll: false};
-
-        let received = await this.device.receiveReports(options, progress);
-        progress.finishOne();
-
-        // Create UTC Assigner and feed it enough points to construct a timeline
-        let utcOptions: UTCAssignerOptions = {allowExtrapolation: true, allowImprecise: true}
-        let assigner = new UTCAssigner(utcOptions);
 
         progress.startOne('Requesting Accelerometer Waveform Data', 3);
         let waveforms = await this.getCompressedWaveforms(progress);
         progress.finishOne();
 
         progress.startOne('Compiling Waveform Data Reports', 1);
-        let decompressed = await this.accumulateWaveforms(progress, waveforms, assigner);
+        let [received, decompressed] = await this.accumulateWaveforms(progress, waveforms);
         progress.finishOne();
 
         return [received, decompressed];
@@ -162,7 +151,7 @@ export class POD1M extends LoggingBase {
         }
     }
 
-    private async accumulateWaveforms(notifier: ProgressNotifier, waveforms: RawWaveformInfo, assigner: UTCAssigner, highestReceived?: number): Promise<IOTileEvent[]> {
+    private async accumulateWaveforms(notifier: ProgressNotifier, waveforms: RawWaveformInfo, highestReceived?: number): Promise<[ReceiveReportsResult, IOTileEvent[]]> {
         let count = Object.keys(waveforms).length;
         let subNotifier = notifier.startOne(`Decompressing ${count} Waveforms`, count);
         let decoder = new HeatshrinkDecoder(WINDOW_BITS, LOOKAHEAD_BITS, INPUT_BUFFER_LENGTH);
@@ -215,18 +204,51 @@ export class POD1M extends LoggingBase {
             throw new InvalidDataError('Waveform Accumulation Error', `Received ${Object.keys(rawWaveforms).length} accumulated waveform entries for ${count} unconverted waveforms`);
         }
 
-        let waveformList = await this.createEvents(rawWaveforms, waveforms, assigner, highestReceived);
+        let [received, waveformList] = await this.createEvents(rawWaveforms, waveforms, highestReceived, notifier);
 
-        return waveformList;
+        return [received, waveformList];
+    }
+
+    private checkWaveformsUTC(waveforms: RawWaveformInfo): boolean {
+        for (let uniqueId in waveforms){
+            let timestamp = waveforms[uniqueId].timestamp;
+
+            if (!!(timestamp & (1 << 31)) === true){
+                return false;
+            }
+        }
+        return true;
     }
 
     /*
      * Create IOTileEvent entries from the raw decoded data and the associated waveform metadata
      */
-   private async createEvents(rawData: {[key: string]: number[]}, waveforms: RawWaveformInfo, assigner: UTCAssigner, highestReceived: number): Promise<IOTileEvent[]> {
+   private async createEvents(rawData: {[key: string]: number[]}, waveforms: RawWaveformInfo, highestReceived: number, notifier: ProgressNotifier): Promise<[ReceiveReportsResult, IOTileEvent[]]> {
         let events: IOTileEvent[] = [];
         let streamID = 0x5020;
-        let utcAssignerPopulated = false;
+
+        notifier.startOne('Requesting Summary Data', 2);
+        let options: ReceiveReportsOptions;
+        options = { expectedStreamers: {0:'Environmental', 1:'System', 2:'Trip'},
+                              requireAll: false};
+
+        if (!this.checkWaveformsUTC(waveforms)){
+            await this.device.acknowledgeStreamerRPC(0, 0, true);
+        }
+
+        let received = await this.device.receiveReports(options, notifier);
+        notifier.finishOne();
+
+        // Create UTC Assigner and feed it enough points to construct a timeline
+        let utcOptions: UTCAssignerOptions = {allowExtrapolation: true, allowImprecise: true}
+        let assigner = new UTCAssigner(utcOptions);
+
+        // populate utc assigner timeline based on reports
+        for (let report of received.reports){
+            this.logWarning(`Populating timeline from report ${report.streamer} ${JSON.stringify(report.header)}`);
+            assigner.addBreaksFromReport(report);
+            assigner.addAnchorsFromReport(report);
+        }
 
         for (let uniqueId in waveforms){
             if (+uniqueId > highestReceived){
@@ -246,24 +268,6 @@ export class POD1M extends LoggingBase {
                     this.logDebug('Received UTC timestamp from device');
                 } else {
                     this.logInfo('Did not receive UTC from device; assigning UTC Timestamp');
-
-                    if (!utcAssignerPopulated){
-                        // Make sure we have at least the system report to go off of:
-                        //  - write 0 ack to system streamer to force rollback temporarily
-                        await this.device.acknowledgeStreamerRPC(0, 0, true);
-                        let options = { expectedStreamers: {0:'Environmental', 1:'System', 2:'Trip'},
-                                requireAll: false};
-                        let received = await this.device.receiveReports(options);
-                        this.logInfo(`Received ${JSON.stringify(received)} reports`);
-
-                        // populate utc assigner timeline based on reports
-                        for (let report of received.reports){
-                            this.logWarning(`Populating timeline from report ${report.streamer} ${JSON.stringify(report.header)}`);
-                            assigner.addBreaksFromReport(report);
-                            assigner.addAnchorsFromReport(report);
-                            utcAssignerPopulated = true;
-                        }
-                    }
                     
                     try {
                         let date = assigner.assignUTCTimestamp(+uniqueId, UTCTimestamp);
@@ -275,11 +279,15 @@ export class POD1M extends LoggingBase {
                     }
                 }
 
+                // get waveforms, check ids -> convert to actual with mapping
+                // assign timestamps
+                // drop any waveforms that couldn't be assigned timestamps
+
                 let event = new IOTileEvent(streamID, UTCTimestamp, summaryData, waveformData, +uniqueId);
                 events.push(event);
             }
         }
 
-        return events;
+        return [received, events];
     }
 }
