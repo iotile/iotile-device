@@ -39,9 +39,9 @@ describe('UTC Assigner', function() {
         let newerUTC = new Date(2018, 10, 11, 1, 0);
         
         impreciseAssigner.addAnchorPoint(3, 12345, newUTC);
-        impreciseAssigner.addTimeBreak(5);
+        impreciseAssigner.addTimeBreak(5, 0);
         impreciseAssigner.addAnchorPoint(7, 123, newerUTC);
-        impreciseAssigner.addTimeBreak(10);
+        impreciseAssigner.addTimeBreak(10, 0);
 
         let approxTime = impreciseAssigner.assignUTCTimestamp(1, 12300);
         let approxTime2 = impreciseAssigner.assignUTCTimestamp(5, 12);
@@ -63,9 +63,9 @@ describe('UTC Assigner', function() {
         let newerUTC = new Date(2018, 10, 11, 1, 0);
 
         extrapolatingAssigner.addAnchorPoint(3, 12345, newUTC);
-        extrapolatingAssigner.addTimeBreak(5);
+        extrapolatingAssigner.addTimeBreak(5, 0);
         extrapolatingAssigner.addAnchorPoint(7, 123, newerUTC);
-        extrapolatingAssigner.addTimeBreak(10);
+        extrapolatingAssigner.addTimeBreak(10, 0);
         
         let extraTime = extrapolatingAssigner.assignUTCTimestamp(1, 12300); 
         let extraTime2 = extrapolatingAssigner.assignUTCTimestamp(5, 12); 
@@ -90,8 +90,8 @@ describe('UTC Assigner', function() {
         extrapolatingAssigner.addAnchorPoint(3, 1234567, newUTC);
         impreciseAssigner.addAnchorPoint(3, 1234567, newUTC);
 
-        extrapolatingAssigner.addTimeBreak(5);
-        impreciseAssigner.addTimeBreak(5);
+        extrapolatingAssigner.addTimeBreak(5, 0);
+        impreciseAssigner.addTimeBreak(5, 0);
 
         // should be able to add additional anchorpoints after timebreak
         let newerUTC = new Date(2018, 10, 11, 3, 4);
@@ -106,20 +106,20 @@ describe('UTC Assigner', function() {
         expect(extrapolatingAssigner.timeSegments.length).toEqual(1);
         expect(impreciseAssigner.timeSegments.length).toEqual(1);
 
-        extrapolatingAssigner.addTimeBreak(2);
-        impreciseAssigner.addTimeBreak(2);
+        extrapolatingAssigner.addTimeBreak(2, 0);
+        impreciseAssigner.addTimeBreak(2, 0);
 
         expect(extrapolatingAssigner.timeSegments).toBeDefined();
         expect(impreciseAssigner.timeSegments).toBeDefined();
         expect(extrapolatingAssigner.timeSegments.length).toEqual(2);
         expect(impreciseAssigner.timeSegments.length).toEqual(2);
 
-        expect(extrapolatingAssigner.timeSegments[0].lastReadingId).toEqual(1);
-        expect(impreciseAssigner.timeSegments[0].lastReadingId).toEqual(1);
-        expect(extrapolatingAssigner.timeSegments[1].lastReadingId).toEqual(Infinity);
-        expect(impreciseAssigner.timeSegments[1].lastReadingId).toEqual(Infinity);
-        expect(extrapolatingAssigner.timeSegments[1].firstReadingId).toEqual(2);
-        expect(impreciseAssigner.timeSegments[1].firstReadingId).toEqual(2);
+        expect(extrapolatingAssigner.timeSegments[0].lastReading.id).toEqual(1);
+        expect(impreciseAssigner.timeSegments[0].lastReading.id).toEqual(1);
+        expect(extrapolatingAssigner.timeSegments[1].lastReading.id).toEqual(Infinity);
+        expect(impreciseAssigner.timeSegments[1].lastReading.id).toEqual(Infinity);
+        expect(extrapolatingAssigner.timeSegments[1].firstReading.id).toEqual(2);
+        expect(impreciseAssigner.timeSegments[1].firstReading.id).toEqual(2);
         expect(extrapolatingAssigner.timeSegments[1].placeholder).toBeTruthy();
         expect(impreciseAssigner.timeSegments[1].placeholder).toBeTruthy();
     });

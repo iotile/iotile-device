@@ -3,7 +3,7 @@ import { IOTileAdapter } from "../iotile-serv";
 import { catPOD1M } from "../../config";
 import { ConnectionError } from "../../common/error-space";
 import { UTCAssigner, UTCAssignerOptions } from "../../common/utc-assigner";
-import { ProgressNotifier, delay, LoggingBase, BaseError, InvalidDataError, unpackArrayBuffer } from "@iotile/iotile-common";
+import { ProgressNotifier, delay, LoggingBase, BaseError, InvalidDataError, unpackArrayBuffer, ArgumentError } from "@iotile/iotile-common";
 import { ShockInfo, WaveformInfo, WaveformData, RawWaveformInfo } from "./types";
 import { WINDOW_BITS, LOOKAHEAD_BITS, INPUT_BUFFER_LENGTH, SAMPLING_RATE } from "./constants";
 import { summarizeWaveform, unpackVLEIntegerList } from "./utilities";
@@ -287,20 +287,28 @@ export class POD1M extends LoggingBase {
                 }
 
                 // Make sure each waveform has a UTC timestamp
-                let UTCTimestamp = waveforms[uniqueId].timestamp;
-                if (!!(UTCTimestamp & (1 << 31)) === true){
+                let uptime = waveforms[uniqueId].timestamp;
+                let UTCTimestamp;
+
+                if ((!!(uptime & (1 << 31)) === true) && (uptime != 0xFFFFFFFF)){
+                    UTCTimestamp = uptime;
                     this.logDebug('Received UTC timestamp from device');
                 } else {
                     this.logInfo('Did not receive UTC from device; assigning UTC Timestamp');
                     
                     try {
-                        let date = assigner.assignUTCTimestamp(readingId, UTCTimestamp);
+                        let date = assigner.assignUTCTimestamp(readingId, uptime);
                         this.logInfo(`Assigned timestamp for waveform: ${date.toISOString()}`);
                         let secondsSince2000 = convertToSecondsSince2000(date);
                         UTCTimestamp = secondsSince2000;
                     } catch (err) {
                         this.logError('Unable to assign UTC timestamp from report information', err);
                     }
+                }
+
+                if (!UTCTimestamp){
+                    this.logError(`Unable to assign UTC to waveform ${readingId}`);
+                    throw new ArgumentError(`Unable to assign UTC to waveform ${readingId} `)
                 }
 
                 // TODO: check IOTileEvent signature (device_timestamp vs. timestamp)
