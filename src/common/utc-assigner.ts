@@ -2,6 +2,7 @@ import { SignedListReport, RawReading } from "./iotile-reports";
 import { ArgumentError, InvalidOperationError } from "@iotile/iotile-common";
 import { Category } from "typescript-logging";
 import { catUTCAssigner } from "../config";
+import { uptime } from "os";
 
 let SECONDS_AT_2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
 
@@ -20,14 +21,24 @@ export type AnchorValueProcessor = (streamID: number, readingID: number, uptime:
 
 
 export class TimeSegment {
-    public firstReadingId: number;
-    public lastReadingId: number;
+    public firstReading: {id: number, uptime: number};
+    public lastReading: {id: number, uptime: number};
     public anchorPoint: AnchorPoint | undefined;
-    public placeholder: boolean;
+    public placeholder: boolean; 
 
-    constructor(firstReadingId: number, lastReadingId: number, placeholder: boolean = false){
-        this.firstReadingId = firstReadingId;
-        this.lastReadingId = lastReadingId;
+    constructor(firstReading?: {id: number, uptime: number}, lastReading?: {id: number, uptime: number}, placeholder: boolean = false){
+        if (firstReading){
+            this.firstReading = {id: firstReading.id, uptime: firstReading.uptime};
+        } else {
+            this.firstReading = {id: 0, uptime: 0};
+        }
+        
+        if (lastReading){
+            this.lastReading = {id: lastReading.id, uptime: lastReading.uptime};
+        } else {
+            this.lastReading = {id: Infinity, uptime: Infinity};
+        }
+        
         this.placeholder = placeholder;
     }
 }
@@ -59,14 +70,15 @@ export class UTCAssigner {
     private imprecise: boolean;
     public timeSegments: TimeSegment[] = [];
     public catUTC: Category;
-    private segmentStartId: number = 0;
-    private lastId: number = 0;
+    private currentStart: {id: number, uptime: number};
+    private lastReading: {id: number, uptime: number} | undefined;
     private anchorStreams: {[key: number]: AnchorValueProcessor} = {};
 
     constructor(options: UTCAssignerOptions) {
         this.extrapolation = options.allowExtrapolation;
         this.imprecise = options.allowImprecise;
-        this.timeSegments.push(new TimeSegment(this.segmentStartId, Infinity, true));
+        this.currentStart = {id: 0, uptime: 0}
+        this.timeSegments.push(new TimeSegment(undefined, undefined, true));
         this.catUTC = catUTCAssigner;
     }
 
@@ -76,19 +88,26 @@ export class UTCAssigner {
      * or because one of the options passed to the constructor does not allow it,
      * throw an ArgumentError. 
      */
-    public assignUTCTimestamp(readingID: number, readingTime: number): Date {
+    public assignUTCTimestamp(readingID: number, uptime: number): Date {
         this.closeSegments();
         let segment = this.getTimeSegment(readingID);
 
+        if (uptime == 0xFFFFFFFF){
+            uptime = 0;
+        }
+
         if (segment.anchorPoint){
-            return this.assignUTCFromAnchor(readingTime, segment.anchorPoint);
+            return this.assignUTCFromAnchor(uptime, segment.anchorPoint);
         } else if (this.imprecise) {
-            let relativeTime = readingTime;
-            while (!segment.anchorPoint){
-                relativeTime -= (readingID - segment.lastReadingId);
-                if (segment.firstReadingId > 0){
-                    this.catUTC.info(`Finding nearby anchors: ${segment.firstReadingId - 1}`);
-                    segment = this.getTimeSegment(segment.firstReadingId - 1);
+            let relativeTime = uptime - segment.firstReading.uptime;
+            while (!segment.anchorPoint){             
+                if (segment.firstReading.id > 0){                    
+                    this.catUTC.info(`Finding nearby anchors: ${segment.firstReading.id - 1}`);
+                    segment = this.getTimeSegment(segment.firstReading.id - 1);
+                    if (!segment.anchorPoint){
+                        // update time delta
+                        relativeTime += segment.lastReading.uptime - segment.firstReading.uptime;
+                    }
                 } else {
                     throw new ArgumentError("Could not assign precise UTC Timestamp");
                 }    
@@ -102,17 +121,17 @@ export class UTCAssigner {
     private getTimeSegment(readingID: number): TimeSegment {
         let timeSegment: TimeSegment = this.timeSegments[this.timeSegments.length -1];
         for (let segment of this.timeSegments){
-            if (readingID >= segment.firstReadingId && readingID <= segment.lastReadingId) {
+            if (readingID >= segment.firstReading.id && readingID <= segment.lastReading.id) {
                 timeSegment = segment;
             }
         }
         return timeSegment;
     }
 
-    private assignUTCFromAnchor(readingTime: number, anchor: AnchorPoint): Date {
+    private assignUTCFromAnchor(uptime: number, anchor: AnchorPoint): Date {
         let anchorOffset: number;
         if (anchor.localTime){
-            anchorOffset = readingTime - anchor.localTime;
+            anchorOffset = uptime - anchor.localTime;
         } else {
             let nextAnchor;
             let nextSegment;
@@ -120,14 +139,14 @@ export class UTCAssigner {
             while (!nextAnchor || !(nextAnchor.localTime)){
                 nextSegment = this.getTimeSegment(increment);
                 nextAnchor = nextSegment.anchorPoint;
-                if (nextSegment.lastReadingId === Infinity && (!(nextAnchor) || !(nextAnchor.localTime))){
+                if (nextSegment.lastReading.id === Infinity && (!(nextAnchor) || !(nextAnchor.localTime))){
                     throw new ArgumentError('Cannot assign UTC from anchorpoint: no local time reference');
                 } else {
-                    increment = nextSegment.lastReadingId + 1;
+                    increment = nextSegment.lastReading.id + 1;
                 }
             }
             anchor.localTime = nextAnchor.localTime - (Math.ceil((nextAnchor.utcTime.valueOf() - anchor.utcTime.valueOf()) / 1000));
-            anchorOffset = readingTime - anchor.localTime;
+            anchorOffset = uptime - anchor.localTime;
         }
         
         let utcTime = new Date(anchor.utcTime.valueOf() + (anchorOffset * 1000));
@@ -161,22 +180,22 @@ export class UTCAssigner {
      * that causes its local time to be cleared by to 0, however it could
      * also be because the device had its clock explicitly reset.
      */
-    public addTimeBreak(readingID: number) {
-        let segment = new TimeSegment(this.segmentStartId, readingID - 1);
+    public addTimeBreak(readingID: number, uptime: number) {
+        let segment = new TimeSegment(this.currentStart, {id: readingID - 1, uptime: uptime});
         
         let last = this.timeSegments.pop();
         // keep anchorPoints in the appropriate segment
-        if (last && last.anchorPoint && (last.anchorPoint.readingId < readingID) && (last.anchorPoint.readingId > this.segmentStartId)){
+        if (last && last.anchorPoint && (last.anchorPoint.readingId < readingID) && (last.anchorPoint.readingId > this.currentStart.id)){
             segment.anchorPoint = last.anchorPoint;
             last.anchorPoint = undefined;
         }
         this.catUTC.info(`Adding Time Break: ${JSON.stringify(segment)}`);
         this.timeSegments.push(segment);
-        this.segmentStartId = readingID;
+        this.currentStart = {id: readingID, uptime: 0};
 
         if (last && last.placeholder){
-            last.firstReadingId = readingID;
-            last.lastReadingId = Infinity;
+            last.firstReading.id = readingID;
+            last.lastReading.id = Infinity;
             last.anchorPoint = last.anchorPoint;
             last.placeholder = true;
             this.timeSegments.push(last);
@@ -186,12 +205,14 @@ export class UTCAssigner {
     // If we're not extrapolating, replace the [placeholder] final time segment last id (infinity) with known last reading id
     private closeSegments(){
         if (!this.extrapolation){
-            let finalSegment = this.timeSegments.pop();
-            let newFinalSegment = new TimeSegment(this.segmentStartId, this.lastId);
-            if (finalSegment && finalSegment.anchorPoint){
-                newFinalSegment.anchorPoint = finalSegment.anchorPoint;
-            }  
-            this.timeSegments.push(newFinalSegment);
+            if (this.currentStart){
+                let finalSegment = this.timeSegments.pop();
+                let newFinalSegment = new TimeSegment(this.currentStart, this.lastReading);
+                if (finalSegment && finalSegment.anchorPoint){
+                    newFinalSegment.anchorPoint = finalSegment.anchorPoint;
+                }  
+                this.timeSegments.push(newFinalSegment);
+            }
         }
     }
 
@@ -240,17 +261,18 @@ export class UTCAssigner {
         let lastReadingTime = 0;
         for (let reading of report.readings){
             if (reading.stream == 0x5C00){
-                this.addTimeBreak(reading.id);
+                this.addTimeBreak(reading.id, reading.timestamp);
             }
             // check for time dropping to 0
             if (reading.timestamp < lastReadingTime){
-                this.addTimeBreak(reading.id);
+                this.addTimeBreak(reading.id, reading.timestamp);
                 lastReadingTime = 0;
             } else {
                 lastReadingTime = reading.timestamp;
             }
-            if (reading.id > this.lastId){
-                this.lastId = reading.id;
+
+            if (!this.lastReading || reading.id > this.lastReading.id){
+                this.lastReading = {id: reading.id, uptime: reading.timestamp};
             }
         }
     }
