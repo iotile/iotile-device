@@ -1,11 +1,13 @@
 # Release Notes for iotile-device
 
+## 0.0.25
+
+- Use @iotile/iotile-common v0.0.12 and improve logging of unfixable streamer reports.
+
 ## 0.0.23
 
 - Refactor POD-1M upload process to only request reports once
-
-- UTC assignment logic fixes: calculating accumulated uptime, using correctly mapped        waveform ids
-
+- UTC assignment logic fixes: calculating accumulated uptime, using correctly mapped waveform ids
 - Update typescript-logging format to not include error message stack trace to avoid
   issues with sentry error grouping.
 

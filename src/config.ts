@@ -1,17 +1,4 @@
-import {Category,CategoryServiceFactory,
-    CategoryConfiguration,LogLevel,CategoryLogFormat, CategoryLogMessage, MessageFormatUtils} from "typescript-logging";
- 
-// Optionally change default settings, in this example set default logging to Info.
-// Without changing configuration, categories will log to Error.
-
-let categoryConfig = new CategoryConfiguration(LogLevel.Info,
-    undefined, new CategoryLogFormat(undefined, false, true));
-
-categoryConfig.formatterLogMessage = (msg: CategoryLogMessage) => {
-    return MessageFormatUtils.renderDefaultMessage(msg, false)
-};
-
-CategoryServiceFactory.setDefaultConfiguration(categoryConfig);
+import {Category,CategoryServiceFactory,CategoryConfiguration,LogLevel} from "typescript-logging";
  
 // Create categories, they will autoregister themselves, one category without parent (root) and a child category.
 export const catService = new Category("iotile.device");
