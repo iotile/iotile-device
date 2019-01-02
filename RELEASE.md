@@ -1,6 +1,6 @@
 # Release Notes for iotile-device
 
-## 0.0.24
+## 0.0.25
 
 - Use @iotile/iotile-common v0.0.12 and improve logging of unfixable streamer reports.
 
