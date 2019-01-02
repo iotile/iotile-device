@@ -2,6 +2,10 @@
 
 ## 0.0.25
 
+- Always fail on upload if Invalid Hash in POD-1M, or waveforms are unable to be assigned   UTC
+
+## 0.0.24
+
 - Use @iotile/iotile-common v0.0.12 and improve logging of unfixable streamer reports.
 
 ## 0.0.23
