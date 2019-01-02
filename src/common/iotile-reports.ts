@@ -389,6 +389,15 @@ export class SignedListReport extends IOTileReport {
 
         if (reassembler.fixOutOfOrderChunks()) {
             catReports.info("Report successfully fixed");
+            let errors = reassembler.getTranspositions();
+            let errorStrings = [];
+
+            for (let error of errors) {
+                let errorString = error.src + " -> " + error.dst;
+                errorStrings.push(errorString);
+            }
+            let errorString = errorStrings.join(", ");
+            catReports.info("Report transpositions were: " + errorString);
 
             let newReport = reassembler.getFixedReport();
             this._rawData = newReport;
