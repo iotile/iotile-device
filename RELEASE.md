@@ -1,5 +1,10 @@
 # Release Notes for iotile-device
 
+## 0.0.26
+
+- Move @iotile/iotile-common to an external peer dependency so that we only have a single
+  copy of it in projects that include both @iotile/iotile-device and @iotile/iotile-common
+
 ## 0.0.25
 
 - Use @iotile/iotile-common v0.0.12 and improve logging of unfixable streamer reports.
