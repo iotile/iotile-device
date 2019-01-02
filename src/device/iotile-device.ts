@@ -466,6 +466,9 @@ export class IOTileDevice {
 
           // is this a report we care about?
           if (report.streamer in options.expectedStreamers && !(report.streamer in receivedNames)){
+            if (report.validity == 1 && subNotifier){
+              subNotifier.fatalError("Invalid Report Signature, please disconnect and try again");
+            }  
             result.reports.push(report);
             receivedNames.push(report.streamer);
             if (subNotifier){

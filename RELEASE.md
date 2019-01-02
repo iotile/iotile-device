@@ -1,6 +1,10 @@
 # Release Notes for iotile-device
 
-## 0.0.23
+## 0.0.25
+
+- Always fail on upload if Invalid Hash in POD-1M, or waveforms are unable to be assigned   UTC
+
+## 0.0.24
 
 - Refactor POD-1M upload process to only request reports once
 

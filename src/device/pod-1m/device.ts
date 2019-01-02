@@ -284,6 +284,9 @@ export class POD1M extends LoggingBase {
                 
                 if (!readingId){
                     this.logError("Could not assign waveform timestamp: no matching user report");
+                    notifier.fatalError("Could not assign waveform timestamp: no matching user report");
+                    notifier.addError("Upload Failed - Reconnect and Try Again", true);
+                    break;
                 }
 
                 // Make sure each waveform has a UTC timestamp
@@ -303,6 +306,8 @@ export class POD1M extends LoggingBase {
                         UTCTimestamp = secondsSince2000;
                     } catch (err) {
                         this.logError('Unable to assign UTC timestamp from report information', err);
+                        notifier.fatalError('Unable to assign UTC timestamp from report information');
+                        notifier.addError("Upload Failed - Contact Arch", true);
                     }
                 }
 
