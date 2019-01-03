@@ -20,11 +20,12 @@ export interface SerializedIOTileEvent {
 export class IOTileEvent {
     private _stream: number;
     private _deviceTimestamp: number;
+    private _utcTimestamp: Date | null;
     private _summaryData: {};
     private _rawData: {};
     private _readingID: number;
 
-    constructor(stream: number, deviceTimestamp: number, summaryData: {}, rawData: {}, readingID?: number) {
+    constructor(stream: number, deviceTimestamp: number, summaryData: {}, rawData: {}, readingID?: number, utcTimestamp?: Date | null) {
         this._stream = stream;
         this._deviceTimestamp = deviceTimestamp;
         this._summaryData = summaryData;
@@ -34,15 +35,24 @@ export class IOTileEvent {
             readingID = 0;
         }
 
+        if (utcTimestamp == null)
+            utcTimestamp = null;
+
         this._readingID = readingID;
+        this._utcTimestamp = utcTimestamp;
     }
 
     public toObject(): SerializedIOTileEvent {
+        let serializedTimestamp: string|null = null;
+
+        if (this._utcTimestamp != null)
+            serializedTimestamp = this._utcTimestamp.toISOString();
+
         return {
             stream: this._stream,
             device_timestamp: this._deviceTimestamp,
             streamer_local_id: this._readingID,
-            timestamp: null,
+            timestamp: serializedTimestamp,
             data: this._rawData,
             extra_data: this._summaryData
         };

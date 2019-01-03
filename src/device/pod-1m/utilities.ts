@@ -1,4 +1,8 @@
-import { WaveformSummary, AxisSummary, PeakAxis, WaveformData } from "./types";
+import { WaveformSummary, AxisSummary, PeakAxis, WaveformData, DecodedWaveformInfo, RawWaveformInfo } from "./types";
+import { InvalidDataError } from "@iotile/iotile-common";
+import { HeatshrinkDecoder } from "heatshrink-ts";
+import { WINDOW_BITS, LOOKAHEAD_BITS, INPUT_BUFFER_LENGTH, SAMPLING_RATE } from "./constants";
+import { IOTileEvent } from "../../common/flexible-dict-report";
 /**
  * Calculate the maximum time that a given threshold is exceeded.
  * 
@@ -179,4 +183,92 @@ export function unpackVLEIntegerList(input: ArrayBuffer): number[] {
     }
 
     return outputNumbers;
+}
+
+export function decompressWaveforms(rawWaveforms: RawWaveformInfo): DecodedWaveformInfo {
+    let decoder = new HeatshrinkDecoder(WINDOW_BITS, LOOKAHEAD_BITS, INPUT_BUFFER_LENGTH);
+    let accelerationData: number[] = [];
+    let waveforms: DecodedWaveformInfo = {};
+
+    for (let wave in rawWaveforms) {
+        let rawWaveform = rawWaveforms[wave];
+        accelerationData = [];
+
+        /*
+         * Un-heatshrink each waveform separately since they are encoded separately.
+         * In particular, we do not want any sliding window shared between subsequent
+         * waveforms.
+         */
+        decoder.reset();
+        decoder.process(rawWaveforms[wave].rawWaveform);
+
+        let expanded = decoder.getOutput();
+
+        // variable length decoding
+        let vleDecoded = unpackVLEIntegerList(<ArrayBuffer>expanded.buffer);
+        if (vleDecoded.length != 3072) {
+            throw new InvalidDataError('Waveform Decompression Error', `Received number of data points is incorrect; parsed ${vleDecoded.length} of 3072`);
+        }
+
+        // convert from device internal storage to Gs
+        for (let v of vleDecoded) {
+            accelerationData.push(v * .049);
+        }
+
+        let waveformData: WaveformData = {acceleration_data: 
+            { x: accelerationData.slice(0, 1024),
+              y: accelerationData.slice(1024, 2048),
+              z: accelerationData.slice(2048)},
+            sampling_rate: SAMPLING_RATE,
+            crc_code: rawWaveform.crcCode
+        };
+
+
+        waveforms[wave] = {
+           deviceTimestamp: rawWaveform.timestamp,
+           utcTimestamp: tryConvertUTCTimestamp(rawWaveform.timestamp),
+           summary:  summarizeWaveform(waveformData),
+           waveform: waveformData
+        }
+
+        /**
+         * If the waveform has an embedded UTC timestamp, promote it to the waveform's UTC time.
+         */
+    }
+
+    return waveforms;
+}
+
+export function tryConvertUTCTimestamp(deviceTimestamp: number): Date | null {
+    if (deviceTimestamp === 0xFFFFFFFF)
+        return null;
+    
+    if (!(deviceTimestamp & ( 1 << 31)))
+        return null;
+
+    //Mask out the high bit to leave the lower 31 bits
+    let y2kDelta = deviceTimestamp & ((1 << 31) - 1);
+    let y2k = new Date('2000-01-01T00:00:00');
+
+    let timestamp = y2k.getTime() + y2kDelta*1000;
+
+    let utcDate = new Date(timestamp);
+    return utcDate;
+}
+
+/**
+ * Create IOTileEvents for all waveforms.
+ */
+export function createWaveformEvents(waveforms: DecodedWaveformInfo): IOTileEvent[] {
+    let events: IOTileEvent[] = [];
+    let streamID = 0x5020;
+
+    for (let uniqueId in waveforms) {
+        let waveform = waveforms[uniqueId];
+
+        let event = new IOTileEvent(streamID, waveform.deviceTimestamp, waveform.summary, waveform.waveform, +uniqueId, waveform.utcTimestamp);
+        events.push(event);
+    }
+
+    return events;
 }

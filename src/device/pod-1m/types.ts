@@ -54,21 +54,6 @@ export interface WaveformData {
     crc_code: number
 };
 
-export type WaveformInfo = {
-    [key: number]: {"timestamp": number,
-                    "crcCode": number,
-                    "waveform": WaveformData,
-                    "rawWaveform": ArrayBuffer}
-};
-
-export type RawWaveformInfo = {
-    [key: number]: {
-        timestamp: number,
-        crcCode: number,
-        rawWaveform: ArrayBuffer
-    }
-};
-
 /** 
  * This is the expected waveform summary information that needs to be uploaded in
  * extra_data with each waveform event to iotile.cloud.
@@ -81,3 +66,19 @@ export interface WaveformSummary {
     delta_v_y: number,
     delta_v_z: number
 };
+
+export type DecodedWaveformInfo = {
+    [key: number]: {"deviceTimestamp": number,
+                    "utcTimestamp": Date | null,
+                    "waveform": WaveformData,
+                    "summary": WaveformSummary}
+};
+
+export type RawWaveformInfo = {
+    [key: number]: {
+        timestamp: number,
+        crcCode: number,
+        rawWaveform: ArrayBuffer
+    }
+};
+

@@ -112,6 +112,23 @@ export class ReportParsingError extends StreamingError {
 
 /**
  * @ngdoc object
+ * @name Errors.type:FatalStreamingError
+ * @description
+ * A generic fatal error during report reception with a simple user facing message
+ * and a technical explanation.
+ */
+export class FatalStreamingError extends StreamingError {
+    public userMessage: string;
+
+    constructor(message: string, userMessage: string) {
+        super("FatalStreamingError", message);
+
+        this.userMessage = userMessage;
+    }
+}
+
+/**
+ * @ngdoc object
  * @name Errors.type:RingBufferEmptyError
  * @description
  * You requested to pop/peek at more data than was currrently present in the ring buffer.

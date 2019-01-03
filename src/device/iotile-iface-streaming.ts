@@ -35,6 +35,10 @@ export class IOTileStreamingInterface {
         this.reportParser.stop();
     }
 
+    public reset() {
+        this.reportParser.reset();
+    }
+
     private receiveStreamingData(value: ArrayBuffer) {
         if (this.channel == null) {
             return;

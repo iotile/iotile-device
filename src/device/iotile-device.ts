@@ -1,11 +1,11 @@
 import {IOTileAdvertisement} from "./iotile-advert-serv";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
-import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex, delay} from "@iotile/iotile-common";
+import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex, delay, LoggingBase} from "@iotile/iotile-common";
 import * as Errors from "../common/error-space";
 import {RawReading, SignedListReport, IOTileReport} from "../common/iotile-reports";
 import {AdapterEvent} from "../common/iotile-types";
 import {ReportParsingError} from "../common/error-space";
-import { catAdapter } from "../config";
+import { catAdapter, catIOTileDevice } from "../config";
 import { ReportParserEvent } from "./iotile-report-parser";
 
 export interface BLEConnectionInfo {
@@ -85,6 +85,11 @@ export interface ReceiveReportsResult {
   reports: SignedListReport[],    // The actual SignedListReport objects received (only those from the streamers in expectedStreamers)
   receivedFromAll: boolean,       // Whether a report was received from every expected streamer
   receivedExtra: boolean,         // Whether extra SignedListReports were received from other streamers during this function    
+}
+
+export interface WaitReportsResult {
+  numReceived: number,
+  numInvalid: number
 }
 
 /**
@@ -228,7 +233,7 @@ export class Config {
   }
 }
 
-export class IOTileDevice {
+export class IOTileDevice extends LoggingBase {
   public advertisement: IOTileAdvertisement;
   public deviceID: number;
   public slug: string;
@@ -238,6 +243,8 @@ export class IOTileDevice {
   private downloadLock: any;
 
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
+    super(catIOTileDevice);
+
     this.advertisement = advData;
     this.deviceID = advData.deviceID;
     this.adapter = adapter;
@@ -375,154 +382,204 @@ export class IOTileDevice {
     return error;
   }
 
-  private async waitReports(notifier: ProgressNotifier): Promise<number> {
-    let that = this;
-
-    let isDoneReceiving: boolean = true;
+  private async waitReports(notifier: ProgressNotifier, streamers: number[] | {[key: number]: string}): Promise<WaitReportsResult> {
     let reportInProgress: boolean = false;
-    let reportPercentage: number = 0;
+    let reportFailed: boolean = false;
     let reportCount: number = 0;
     let invalidReports: number = 0;
 
-    let progressCallback = function (eventName: string, event: ReportParserEvent) {
+    let streamerNames: {[key: number]: string} = {};
+    let streamerNumbers: number[] = [];
 
-        if (event.name == 'ReportInvalidEvent') {
-            invalidReports += 1;
-            throw new ReportParsingError(`Received report with invalid signature`);
-        }
+    /**
+     * Setup default names for all streamers if we were not passed in a dictionary
+     */
 
-        if (event.finishedPercentage === 100) {
-            reportInProgress = false;
-            reportPercentage = event.finishedPercentage;
-            reportCount += 1;
-            notifier.finishOne();
-            notifier.updateDescription(`Successfully received report`);        
-        } else if (event.name == 'ReportStalledEvent') {
-            throw new Errors.ReportParsingStoppedError(`Report parsing stalled on report`);
-        } else {
-            reportInProgress = true;
-            reportPercentage = event.finishedPercentage;
-        }
+     if (streamers instanceof Array) {
+      for (let streamer of streamers)
+        streamerNames[streamer] = `Report Type ${streamer}`;
+
+      streamerNumbers = streamers;
+     } else {
+      streamerNames = streamers;
+      for (let streamer of Object.keys(streamers))
+        streamerNumbers.push(+streamer);
+     }
+
+    let subNotifier: ProgressNotifier | null = null;
+
+    let progressCallback = (eventName: string, event: ReportParserEvent) => {
+      this.logTrace(`waitReports received event: ${eventName}`, event);
+
+      switch(event.name) {
+        case 'ReportInvalidEvent':
+        reportInProgress = false;
+        invalidReports += 1;
+        notifier.finishOne();
+        break;
+
+        case 'ReportFinishedEvent':
+        reportInProgress = false;
+        reportCount += 1;
+        notifier.finishOne();
+        break;
+
+        case 'ReportStartedEvent':
+        subNotifier = notifier.startOne(`Receiving ${getReportName(event.reportIndex, streamerNames)}`, 20);
+        reportInProgress = true;
+        break;
+
+        case 'ReportProgressEvent':
+        if (subNotifier != null)
+          subNotifier.finishOne();
+
+        reportInProgress = true;
+        break;
+
+        case 'ReportStalledEvent':
+        case 'ReportParsingError':
+        reportInProgress = false;
+        reportFailed = true;
+        break;
+      }
     }
 
     let disconnectCallback = function (eventName: string, event: ReportParserEvent) {
         reportInProgress = false;
-        reportPercentage = 0;
     }
 
     let reportStartedHandler = this.adapter.subscribe(AdapterEvent.RobustReportStarted, progressCallback);
     let reportStalledHandler = this.adapter.subscribe(AdapterEvent.RobustReportStalled, progressCallback);
+    let reportParseErrorHandler = this.adapter.subscribe(AdapterEvent.UnrecoverableStreamingError, progressCallback);
     let reportProgressHandler =  this.adapter.subscribe(AdapterEvent.RobustReportProgress, progressCallback);
+    let reportInvalidHandler = this.adapter.subscribe(AdapterEvent.RobustReportInvalid, progressCallback);
     let reportFinishedHandler = this.adapter.subscribe(AdapterEvent.RobustReportFinished, progressCallback);
     let reportDisconnectedHandler = this.adapter.subscribe(AdapterEvent.Disconnected, disconnectCallback);
     
-    do {
+    /**
+     * Make sure to clear out any previous corrupt data from the streaming interface before starting to
+     * receive new reports.  This prevents a permanent failure receiving data if there is a corrupt report
+     * that has corruption in the first 20 bytes since that will cause it to decode as an invalid report
+     * type and the report parser will enter permanent failure until you reconnect or reset the stream
+     * interface.
+     */
+    this.adapter.resetStreaming();
+
+    /**
+     * It is very important that triggering the streamer happens after we install our handlers to capture
+     * the status updates, otherwise we cannot guarantee that we will see a report event in < 500 ms
+     * since we only get a progress event every 5% of the report.  For large reports that take > 10 seconds
+     * to receive, we would miss the report started event since it happened when the report was triggered
+     * and we would not get a report status event in < 500 ms so we would return early from this routine.
+     */
+    try {
+      for (let key of streamerNumbers) {
+        let info = await this.queryStreamerRPC(+key);
+  
+        this.logDebug(`Queried streamer ${key}`, {
+          info: info
+        });
+  
+        // Check if streamer has been triggered yet
+        if (info.commStatus === 0) {
+            let err = await this.triggerStreamer(+key);
+            this.logDebug(`Triggered streamer ${key}`, {
+              returnValue: err
+            })
+  
+            // if error != no new reports
+            if (err && (err !== 0x8003801f)) throw new Errors.FatalStreamingError(`Error triggering streamer ${key}, error: ${err}`, "Download Failed - Please Try Again");
+          }
+      }
+  
+      while (true) {
         await delay(500);
+  
+        if (reportInProgress) continue;
+  
+        await delay(100);
 
-        if (reportInProgress === false) {
-            await delay(100);
-            if (reportInProgress === false) {
-                break;
-            }
-        } else {
-            notifier.updateDescription("Receiving report" + " Data: " + reportPercentage + "% Done");
-        }
-    } while (!isDoneReceiving);
+        if (!reportInProgress) break;
+      }
 
-    //clean up subscriptions
-    reportStartedHandler();
-    reportStalledHandler();
-    reportProgressHandler();
-    reportFinishedHandler();
-    reportDisconnectedHandler();
+      if (reportFailed) throw new Errors.FatalStreamingError("Stall while receiving a report", "Streaming Failed - Please Try Again");
+    } finally {
+      //clean up subscriptions
+      reportStartedHandler();
+      reportStalledHandler();
+      reportProgressHandler();
+      reportFinishedHandler();
+      reportDisconnectedHandler();
+      reportInvalidHandler();
+      reportParseErrorHandler();
+    }
 
-    if (invalidReports > 0){
-        reportCount = -1;
-    }      
-
-    return reportCount;
+    /** 
+     * If we received fewer reports than we were expecting, make sure we finish the rest of the progress items
+     */
+    for (let i = reportCount; i < streamerNumbers.length; ++i) {
+      notifier.startOne(`Skipping Report with No New Data`, 1);
+      notifier.finishOne();
+    }
+    
+    return {
+      numInvalid: invalidReports,
+      numReceived: reportCount
+    }
   }
-
 
   public async receiveReports(options: ReceiveReportsOptions, progress?: ProgressNotifier): Promise<ReceiveReportsResult> {
     let result: ReceiveReportsResult = {reports: [], receivedFromAll: true, receivedExtra: false};
 
-    if (!progress){
+    if (!progress)
       progress = new ProgressNotifier();
-    }
 
-    progress.startOne('Receiving Summary Streams', 1);
     let receivedNames: number[] = [];
 
-    let subNotifier = progress.startOne(`Downloading Device Reports`, Object.keys(options.expectedStreamers).length);
-
     // get the triggered reports as they come in
-    let receiveReportHandler = this.adapter.subscribe(AdapterEvent.RawRobustReport, async function(event: string, report: SignedListReport) {
+    let clearSubscription = this.adapter.subscribe(AdapterEvent.RawRobustReport, async (event: string, report: SignedListReport) => {
       try {
-          let streamName = options.expectedStreamers[report.streamer];
-          if (!streamName){
-            streamName = "Extra"
-          }
-
           // is this a report we care about?
           if (report.streamer in options.expectedStreamers && !(report.streamer in receivedNames)){
-            if (report.validity == 1 && subNotifier){
-              subNotifier.fatalError("Invalid Report Signature, please disconnect and try again");
-            }  
             result.reports.push(report);
             receivedNames.push(report.streamer);
-            if (subNotifier){
-              subNotifier.finishOne();
-            }
           } else {
             result.receivedExtra = true;
           }
       } catch (err) {
-        catAdapter.error(`[IOTileDevice] Could not process report: ${options.expectedStreamers[report.streamer]}`, new Error(err));
+        this.logException(`Could not process report: ${options.expectedStreamers[report.streamer]}`, new Error(err));
       }
     });
 
-    let triggeredOne = false;
+    try {
+      let reportInfo = await this.waitReports(progress, options.expectedStreamers);
+      this.logDebug("Result of waitReports", {
+        streamers: options.expectedStreamers,
+        result: reportInfo
+      });
 
-    for (let key in Object.keys(options.expectedStreamers)){
-      let info = await this.queryStreamerRPC(+key);
-      let streamName = options.expectedStreamers[key];
-
-      // Check if streamer has been triggered yet
-      if (!triggeredOne || info.commStatus === 0) {
-          catAdapter.info("Triggering streamer on " + key);
-          let err = await this.triggerStreamer(+key);
-          catAdapter.info("Received from trigger streamer: " + err);
-          
-          // if error != no new reports
-          if (err && (err != 0x8003801f)){
-            catAdapter.error(`Error triggering ${streamName} streamer`, new Errors.StreamingError(options.expectedStreamers[key], JSON.stringify(err)));
-            result.receivedFromAll = false;
-          }
-          triggeredOne = true;
-        }
+      if (reportInfo.numInvalid > 0)
+        throw new Errors.FatalStreamingError(`Received ${reportInfo.numInvalid} invalid reports`, 'Download Failed - Please Try Again');
+    } finally {
+      clearSubscription();
     }
 
-    let triggeredReports = await this.waitReports(progress);
-    if (triggeredReports < 0){
-      progress.fatalError("Problem receiving reports: Invalid Data, please reconnect and try again");
-    }
-    progress.finishOne();
-
-    for (let key of Object.keys(options.expectedStreamers)){
+    for (let key of Object.keys(options.expectedStreamers)) {
       if (!(+key in receivedNames)){
         result.receivedFromAll = false;
       }
     }
 
-    if (options.requireAll && !result.receivedFromAll){
-      catAdapter.error(`[IOTileDevice] Failed to receive all required streamers`, new Error("Missing Required Report"));
-      progress.fatalError(`Error receiving data. Reconnect to device and try upload again.`);
-      throw new ReportParsingError(`Missing required report`);
+    if (options.requireAll && !result.receivedFromAll) {
+      this.logError(`Failed to receive all required streamers`, {
+        result: result,
+        options: options
+      });
+
+      throw new Errors.FatalStreamingError(`Missing required report`, 'Download Failed - Please Try Again');
     }
 
-    //clean up subscription
-    receiveReportHandler();
+    //Make sure we finish 
 
     return result;
   }
@@ -655,4 +712,11 @@ export class IOTileDevice {
     let [err]: [number] = await this.adapter.typedRPC(8, 0x8001, "HHHH", "L", [minInterval, maxInterval, timeout, 0], 1.0);
     return err;
   }
+}
+
+function getReportName(streamer: number, streamerNames: {[key: number]: string}): string {
+  if (!(streamer in streamerNames))
+    return "Extra Report";
+
+  return streamerNames[streamer];
 }
