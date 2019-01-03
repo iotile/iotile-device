@@ -1,5 +1,10 @@
 # Release Notes for iotile-device
 
+## HEAD
+
+- Refactor POD-1M download process to be more robust and maintainable.
+- Ensure that the download process throws an exception if an invalid report is received.
+
 ## 0.0.26
 
 - Move @iotile/iotile-common to an external peer dependency so that we only have a single

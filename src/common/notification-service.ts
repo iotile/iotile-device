@@ -9,7 +9,7 @@ export abstract class AbstractNotificationService {
 export class EventManager {
     private callbacks: {[key: string]: (string: string,any: any) => void};
 
-    constructor(event: string){
+    constructor(event: string) {
         this.callbacks = {};
     }
 
@@ -21,12 +21,12 @@ export class EventManager {
     }
 
     public triggerCallback(event: string, args: any){
-        for (let callback in this.callbacks){
+        for (let callback in this.callbacks) {
             try {
                 this.callbacks[callback](event, args);
             } catch(err) {
-                catNotify.error("Could not trigger notification callback: ", err);
-            }       
+                catNotify.error(`Could not trigger notification callback: ${event}`, err);
+            }
         }
     }
 

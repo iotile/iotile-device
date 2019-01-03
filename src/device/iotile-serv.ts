@@ -791,6 +791,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
    */
   public subscribe(event: AdapterEvent, callback: (string: string, any: any) => void) {
     let eventName: string = this.adapterEventNames[event];
+
     let handler = this.notification.subscribe(eventName, callback);
     return handler;
   }

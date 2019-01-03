@@ -325,7 +325,7 @@ export class ReportParser {
         //If we got this far, then we're in the process of receiving a signed report
         //Only update our status if we did not receive the entire report in one shot
         if (totalLength > this.ringBuffer.count) {
-            this.updateStatus(true, totalLength, this.ringBuffer.count);
+            this.updateStatus(true, totalLength, this.ringBuffer.count, originStreamer);
         }
 
         //If this is the first bit of the report, we need to save off the timestamp for
@@ -336,7 +336,7 @@ export class ReportParser {
 
         let totalReport = this.ringBuffer.pop(totalLength);
 
-        this.updateStatus(false, 0, 0);
+        this.updateStatus(false, 0, 0, originStreamer);
 
         let report: SignedListReport | null = new SignedListReport(uuid, originStreamer, totalReport, this._receivedTime);        
         /**
@@ -366,13 +366,16 @@ export class ReportParser {
      * shot.  So if we are just dumped a complete report in a single pushData() call, then 
      * no progress will be reported.  
      */
-    private updateStatus(inProgress: boolean, totalSize: number, receivedSize: number) {
+    private updateStatus(inProgress: boolean, totalSize: number, receivedSize: number, streamer?: number) {
+        if (streamer == undefined)
+            streamer = -1;
+
         if (inProgress && this._receiveState != ReceiveStatus.InProgress && receivedSize < totalSize) {
             //If we are just starting a report (and have not received the entire thing)
-            this._lastEvent = new ReportStartedEvent(totalSize, this._reportsReceived);
+            this._lastEvent = new ReportStartedEvent(totalSize, streamer);
         } else if (!inProgress && this._receiveState == ReceiveStatus.InProgress) {
             //If we finished a report, send a finished event
-            this._lastEvent = new ReportFinishedEvent(this._reportsReceived);
+            this._lastEvent = new ReportFinishedEvent(streamer);
         } else if (inProgress && this._inProgressReceived != receivedSize) {
             //See if we have received enough data to qualify for producing another progress event
             let lastPercentage = this._lastProgressReport / this._inProgressTotal * 100;
@@ -382,7 +385,7 @@ export class ReportParser {
             let currentProgress = Math.floor(currentPercentage / this._progressReportInterval);
 
             if (currentProgress != lastProgress) {
-                this._lastEvent = new ReportProgressEvent(currentProgress*this._progressReportInterval, this._reportsReceived);
+                this._lastEvent = new ReportProgressEvent(currentProgress*this._progressReportInterval, streamer);
                 this._lastProgressReport = receivedSize;
             }
         } else if (inProgress && this._receiveState != ReceiveStatus.InProgress && receivedSize == totalSize) {
