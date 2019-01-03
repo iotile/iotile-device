@@ -510,7 +510,7 @@ export class IOTileDevice extends LoggingBase {
       notifier.startOne(`Skipping Report with No New Data`, 1);
       notifier.finishOne();
     }
-
+    
     return {
       numInvalid: invalidReports,
       numReceived: reportCount
