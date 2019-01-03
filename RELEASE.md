@@ -1,6 +1,6 @@
 # Release Notes for iotile-device
 
-## HEAD
+## 0.0.27
 
 - Refactor POD-1M download process to be more robust and maintainable.
 - Ensure that the download process throws an exception if an invalid report is received.
