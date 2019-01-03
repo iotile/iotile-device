@@ -408,7 +408,9 @@ export class IOTileDevice extends LoggingBase {
 
     let subNotifier: ProgressNotifier | null = null;
 
-    let progressCallback = (_eventName: string, event: ReportParserEvent) => {
+    let progressCallback = (eventName: string, event: ReportParserEvent) => {
+      this.logTrace(`waitReports received event: ${eventName}`, event);
+
       switch(event.name) {
         case 'ReportInvalidEvent':
         reportInProgress = false;
@@ -435,6 +437,7 @@ export class IOTileDevice extends LoggingBase {
         break;
 
         case 'ReportStalledEvent':
+        case 'ReportParsingError':
         reportInProgress = false;
         reportFailed = true;
         break;
@@ -447,11 +450,21 @@ export class IOTileDevice extends LoggingBase {
 
     let reportStartedHandler = this.adapter.subscribe(AdapterEvent.RobustReportStarted, progressCallback);
     let reportStalledHandler = this.adapter.subscribe(AdapterEvent.RobustReportStalled, progressCallback);
+    let reportParseErrorHandler = this.adapter.subscribe(AdapterEvent.UnrecoverableStreamingError, progressCallback);
     let reportProgressHandler =  this.adapter.subscribe(AdapterEvent.RobustReportProgress, progressCallback);
     let reportInvalidHandler = this.adapter.subscribe(AdapterEvent.RobustReportInvalid, progressCallback);
     let reportFinishedHandler = this.adapter.subscribe(AdapterEvent.RobustReportFinished, progressCallback);
     let reportDisconnectedHandler = this.adapter.subscribe(AdapterEvent.Disconnected, disconnectCallback);
     
+    /**
+     * Make sure to clear out any previous corrupt data from the streaming interface before starting to
+     * receive new reports.  This prevents a permanent failure receiving data if there is a corrupt report
+     * that has corruption in the first 20 bytes since that will cause it to decode as an invalid report
+     * type and the report parser will enter permanent failure until you reconnect or reset the stream
+     * interface.
+     */
+    this.adapter.resetStreaming();
+
     /**
      * It is very important that triggering the streamer happens after we install our handlers to capture
      * the status updates, otherwise we cannot guarantee that we will see a report event in < 500 ms
@@ -475,24 +488,21 @@ export class IOTileDevice extends LoggingBase {
             })
   
             // if error != no new reports
-            if (err && (err !== 0x8003801f))
-              throw new Errors.FatalStreamingError(`Error triggering streamer ${key}, error: ${err}`, "Download Failed - Please Try Again");
+            if (err && (err !== 0x8003801f)) throw new Errors.FatalStreamingError(`Error triggering streamer ${key}, error: ${err}`, "Download Failed - Please Try Again");
           }
       }
   
       while (true) {
         await delay(500);
   
-        if (reportInProgress)
-          continue;
+        if (reportInProgress) continue;
   
         await delay(100);
-        if (!reportInProgress)
-          break;
+
+        if (!reportInProgress) break;
       }
 
-      if (reportFailed)
-        throw new Errors.FatalStreamingError("Stall while receiving a report", "Lost Connection - Please Try Again");
+      if (reportFailed) throw new Errors.FatalStreamingError("Stall while receiving a report", "Streaming Failed - Please Try Again");
     } finally {
       //clean up subscriptions
       reportStartedHandler();
@@ -501,6 +511,7 @@ export class IOTileDevice extends LoggingBase {
       reportFinishedHandler();
       reportDisconnectedHandler();
       reportInvalidHandler();
+      reportParseErrorHandler();
     }
 
     /** 

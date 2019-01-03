@@ -566,6 +566,15 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   }
 
   /**
+   * Utility method to forcibly reset the streaming interface in case it has received corrupted data.
+   */
+  public resetStreaming() {
+    this.ensureConnected('resetting stream interface');
+
+    this.streamingInterface.reset();
+  }
+
+  /**
    * @ngdoc method
    * @name iotile.device.service:IOTileAdapter#rpc
    * @methodOf iotile.device.service:IOTileAdapter

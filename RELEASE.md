@@ -4,6 +4,11 @@
 
 - Refactor POD-1M download process to be more robust and maintainable.
 - Ensure that the download process throws an exception if an invalid report is received.
+- Add the ability to explicitly reset the streaming interface so that we can deterministically
+  recover from corrupted reports received over bluetooth.
+- Make `waitReports` robust against reports that are corrupt in the first 20 bytes, causing them
+  to be misdecoded as an invalid report type, which breaks the streaming system until an explicit
+  reset or device reconnection happens.
 
 ## 0.0.26
 

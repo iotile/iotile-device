@@ -230,7 +230,7 @@ export class POD1M extends LoggingBase {
         }
     }
 
-    private async downloadReports(notifier: ProgressNotifier): Promise<SignedListReport[]> {
+    public async downloadReports(notifier: ProgressNotifier): Promise<SignedListReport[]> {
         let options: ReceiveReportsOptions;
         options = {expectedStreamers: {0:'Environmental Report', 1:'System Report', 2:'Trip Report'},
                    requireAll: false};
