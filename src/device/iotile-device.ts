@@ -503,6 +503,14 @@ export class IOTileDevice extends LoggingBase {
       reportInvalidHandler();
     }
 
+    /** 
+     * If we received fewer reports than we were expecting, make sure we finish the rest of the progress items
+     */
+    for (let i = reportCount; i < streamerNumbers.length; ++i) {
+      notifier.startOne(`Skipping Report with No New Data`, 1);
+      notifier.finishOne();
+    }
+
     return {
       numInvalid: invalidReports,
       numReceived: reportCount
@@ -559,6 +567,8 @@ export class IOTileDevice extends LoggingBase {
 
       throw new Errors.FatalStreamingError(`Missing required report`, 'Download Failed - Please Try Again');
     }
+
+    //Make sure we finish 
 
     return result;
   }
