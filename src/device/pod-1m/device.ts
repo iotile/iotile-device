@@ -6,7 +6,7 @@ import { UTCAssigner, UTCAssignerOptions } from "../../common/utc-assigner";
 import { ProgressNotifier, delay, LoggingBase, BaseError, InvalidDataError, unpackArrayBuffer, ArgumentError } from "@iotile/iotile-common";
 import { ShockInfo, RawWaveformInfo } from "./types";
 import { WINDOW_BITS, LOOKAHEAD_BITS, INPUT_BUFFER_LENGTH, SAMPLING_RATE } from "./constants";
-import { IOTileEvent } from "../../common/flexible-dict-report"
+import { IOTileEvent, FlexibleDictionaryReport } from "../../common/flexible-dict-report"
 import { HeatshrinkDecoder } from "heatshrink-ts";
 import { SignedListReport } from "../../common/iotile-reports";
 import { decompressWaveforms, createWaveformEvents } from "./utilities";
@@ -124,7 +124,6 @@ export class POD1M extends LoggingBase {
         }
 
         let waveformEvents = createWaveformEvents(decodedWaveforms);
-
         return [reports, waveformEvents];
     }
 

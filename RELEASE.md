@@ -1,5 +1,12 @@
 # Release Notes for iotile-device
 
+## 0.0.28
+
+- Fix UTC assignment for waveforms to properly assign UTC timestamps rather than localtime masquerading as 
+  UTC.
+- Enhance FlexibleDictionaryReport with a compatible interface to SignedListReport so that RobustReportService
+  can deal with both of them.
+
 ## 0.0.27
 
 - Refactor POD-1M download process to be more robust and maintainable.

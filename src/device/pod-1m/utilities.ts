@@ -248,7 +248,7 @@ export function tryConvertUTCTimestamp(deviceTimestamp: number): Date | null {
 
     //Mask out the high bit to leave the lower 31 bits
     let y2kDelta = deviceTimestamp & ((1 << 31) - 1);
-    let y2k = new Date('2000-01-01T00:00:00');
+    let y2k = new Date('2000-01-01T00:00:00Z');
 
     let timestamp = y2k.getTime() + y2kDelta*1000;
 

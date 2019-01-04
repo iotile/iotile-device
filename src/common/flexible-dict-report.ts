@@ -104,6 +104,7 @@ export class FlexibleDictionaryReport extends IOTileReport {
 
     private _readings: RawReading[];
     private _events: IOTileEvent[];
+    private _cachedMsgpack: ArrayBuffer | null;
 
     constructor(uuid: number, readings: RawReading[], events: IOTileEvent[], options?: FlexibleDictionaryOptions) {
         super();
@@ -127,6 +128,7 @@ export class FlexibleDictionaryReport extends IOTileReport {
         this._streamerIndex = options.streamer;
         this._streamerSelector = options.selector;
         this._sentTimestamp = options.sentTimestamp;
+        this._cachedMsgpack = null;
 
         if (readings.length > 0) {
             throw new ArgumentError("Passing readings to a FlexibleDictionaryReport is not yet supported");
@@ -140,6 +142,28 @@ export class FlexibleDictionaryReport extends IOTileReport {
          * they are properly sorted and keep track of lowest and highest.
          */
         this.sortAndCalculateIDRange();
+    }
+
+    public get deviceID(): number {
+        return this._uuid;
+    }
+
+    public get readingIDRange(): [number, number] {
+        return [this._lowestID, this._highestID];
+    }
+
+    public get streamer(): number {
+        return this._streamerIndex;
+    }
+
+    public get rawData(): ArrayBuffer {
+        if (this._cachedMsgpack == null) this._cachedMsgpack = this.toMsgpack();
+
+        return this._cachedMsgpack;
+    }
+
+    public get numEvents(): number {
+        return this._events.length;
     }
 
     private sortAndCalculateIDRange() {
