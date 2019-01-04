@@ -1,5 +1,11 @@
 # Release Notes for iotile-device
 
+## 0.1.0-rc.1
+
+- Refactor UTC reconstruction process be algorithmically faster and based on anchor points directly
+  rather than explicit time segments.
+- Integrate UTC reconstruction process into waveform processing.
+
 ## 0.0.28
 
 - Fix UTC assignment for waveforms to properly assign UTC timestamps rather than localtime masquerading as 
