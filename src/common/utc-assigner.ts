@@ -143,6 +143,8 @@ export class UTCAssigner {
         this.anchorPoints.sort((a, b) => {
             return a.readingId - b.readingId;
         });
+
+        this.anchorPointsSorted = true;
     }
 
     /*
