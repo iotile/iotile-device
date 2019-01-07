@@ -20,7 +20,11 @@ export function ensureUTCTimestamps(waveforms: DecodedWaveformInfo, reports: Sig
     for (let waveID in waveforms) {
         let wave = waveforms[waveID];
 
-        if (!(waveID in waveIDMap)) continue;
+        if (!(waveID in waveIDMap)) {
+            catUTCAssigner.warn(`Dropping waveform ${waveID} that was not present in controller reports`);
+            continue;
+        } 
+
         if (wave.utcTimestamp != null) continue;
         
         let readingID = waveIDMap[waveID];
@@ -54,9 +58,11 @@ function createWaveMap(reports: SignedListReport[]): {[key: number]: number} {
     let waveMap: {[key: number]: number} = {};
 
     for (let report of reports) {
-        if (report.streamer == 0){
+        catUTCAssigner.debug(`Adding waveforms from report streamer ${report.streamer} id range ${report.readingIDRange[0]}, ${report.readingIDRange[1]} with ${report.readings.length} readings.`);
+
+        if (report.streamer == 0) {
             for (let reading of report.readings) {
-                if (reading.stream == 0x5020){
+                if (reading.stream == 0x5020) {
                     waveMap[reading.value] = reading.id;
                 }
             }

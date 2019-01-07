@@ -120,12 +120,16 @@ export class POD1M extends LoggingBase {
          *    These readings are sent by streamer 2 so we roll that streamer back to 
          *    make sure we receive them again in case they have already been sent to the
          *    cloud.
+         * 
+         * Note that we roll both streamer back to id 1 not id 0 since rolling back to 
+         * ID 0 is broken on some firmware versions and cannot be trusted to work 
+         * correctly.
          */
         if (missingUTCCount > 0) {
             this.logWarning(`Found ${missingUTCCount} waveforms without UTC timestamps, will need to reconstruct timestamps`);
 
-            await this.device.acknowledgeStreamerRPC(0, 0, true);
-            await this.device.acknowledgeStreamerRPC(2, 0, true);
+            await this.device.acknowledgeStreamerRPC(0, 1, true);
+            await this.device.acknowledgeStreamerRPC(2, 1, true);
         } else {
             this.logInfo("All waveforms had UTC timestamps, no reconstruction necessary");
         }
