@@ -1,47 +1,25 @@
 import { SignedListReport, RawReading } from "./iotile-reports";
-import { ArgumentError, InvalidOperationError } from "@iotile/iotile-common";
+import { ArgumentError } from "@iotile/iotile-common";
 import { Category } from "typescript-logging";
 import { catUTCAssigner } from "../config";
-import { uptime } from "os";
 
 let SECONDS_AT_2000 = Date.UTC(2000, 0, 1).valueOf() / 1000;
 
 export interface UTCAssignerOptions {
-    allowExtrapolation: boolean,
     allowImprecise: boolean
 }
 
 export interface AnchorPoint {
     readingId: number,
-    localTime: number | undefined,
-    utcTime: Date
+    uptime: number | null,
+    utcTime: Date | null,
+    isBreak: boolean
 }
 
-export type AnchorValueProcessor = (streamID: number, readingID: number, uptime: number, value: number) => number;
-
-
-export class TimeSegment {
-    public firstReading: {id: number, uptime: number};
-    public lastReading: {id: number, uptime: number};
-    public anchorPoint: AnchorPoint | undefined;
-    public placeholder: boolean; 
-
-    constructor(firstReading?: {id: number, uptime: number}, lastReading?: {id: number, uptime: number}, placeholder: boolean = false){
-        if (firstReading){
-            this.firstReading = {id: firstReading.id, uptime: firstReading.uptime};
-        } else {
-            this.firstReading = {id: 0, uptime: 0};
-        }
-        
-        if (lastReading){
-            this.lastReading = {id: lastReading.id, uptime: lastReading.uptime};
-        } else {
-            this.lastReading = {id: Infinity, uptime: Infinity};
-        }
-        
-        this.placeholder = placeholder;
-    }
-}
+/**
+ * A conversion function that takes the value of a reading in a given stream and turns it into a utc date.
+ */
+export type AnchorValueProcessor = (streamID: number, readingID: number, uptime: number, value: number) => Date;
 
 
 /**
@@ -57,29 +35,38 @@ export class TimeSegment {
  * are both known.  Once there is an anchor point in a given segment, all other readings in that
  * segment can be assigned UTC times by looking at their local time offset from the anchor point.
  * 
- * If allowExtrapolation is passed, this class should assume that the final TimeSegment extends to
- * infinity with no additional resets.
- * 
  * If allowImprecise is passed, this class should still try to assign a UTC time to a reading even
  * if it occurs in a segment with no anchor points by finding the first subsequent segment that does
  * have an anchor point and back-calculating from there assuming that all breaks between segments 
  * were infinitely short.
  */
 export class UTCAssigner {
-    private extrapolation: boolean;
     private imprecise: boolean;
-    public timeSegments: TimeSegment[] = [];
-    public catUTC: Category;
-    private currentStart: {id: number, uptime: number};
-    private lastReading: {id: number, uptime: number} | undefined;
-    private anchorStreams: {[key: number]: AnchorValueProcessor} = {};
+    private anchorPoints: AnchorPoint[];
+    private addedIDSet: {[key: number]: boolean};
+    private anchorPointsSorted: boolean;
+
+    private logger: Category;
+
+    private anchorStreams: {[key: number]: AnchorValueProcessor};
+    private breakStreams: {[key: number]: boolean};
 
     constructor(options: UTCAssignerOptions) {
-        this.extrapolation = options.allowExtrapolation;
         this.imprecise = options.allowImprecise;
-        this.currentStart = {id: 0, uptime: 0}
-        this.timeSegments.push(new TimeSegment(undefined, undefined, true));
-        this.catUTC = catUTCAssigner;
+        this.logger = catUTCAssigner;
+
+        this.anchorPoints = [];
+        this.addedIDSet = {};
+        this.anchorPointsSorted = false;
+
+        this.anchorStreams = {};
+        this.breakStreams = {};
+
+        this.initBreakStreams();
+    }
+
+    private initBreakStreams() {
+        this.breakStreams[0x5c00] = true;
     }
 
     /**
@@ -88,69 +75,76 @@ export class UTCAssigner {
      * or because one of the options passed to the constructor does not allow it,
      * throw an ArgumentError. 
      */
-    public assignUTCTimestamp(readingID: number, uptime: number): Date {
-        this.closeSegments();
-        let segment = this.getTimeSegment(readingID);
+    public assignUTCTimestamp(readingID: number, uptime: number | null): Date {        
+        /**
+         * uptimes embedded in the accelerometer tile are stored as placeholders with the
+         * fixed value 0xFFFFFFFF, which should be interpreted as "I don't know the uptime"
+         */
+        if (uptime === 0xFFFFFFFF) uptime = null;
 
-        if (uptime == 0xFFFFFFFF){
-            uptime = 0;
-        }
+        if (this.anchorPoints.length === 0) throw new ArgumentError("Cannot assign timestamp because there are no anchor points");
+        if (readingID > this.anchorPoints[this.anchorPoints.length - 1].readingId) throw new ArgumentError("Extrapolation of UTC times is not yet supported");
 
-        if (segment.anchorPoint){
-            return this.assignUTCFromAnchor(uptime, segment.anchorPoint);
-        } else if (this.imprecise) {
-            let relativeTime = uptime - segment.firstReading.uptime;
-            while (!segment.anchorPoint){             
-                if (segment.firstReading.id > 0){                    
-                    this.catUTC.info(`Finding nearby anchors: ${segment.firstReading.id - 1}`);
-                    segment = this.getTimeSegment(segment.firstReading.id - 1);
-                    if (!segment.anchorPoint){
-                        // update time delta
-                        relativeTime += segment.lastReading.uptime - segment.firstReading.uptime;
-                    }
-                } else {
-                    throw new ArgumentError("Could not assign precise UTC Timestamp");
-                }    
-            }
-            return this.assignUTCFromAnchor(relativeTime, segment.anchorPoint);
-        } else {
-            throw new ArgumentError("Could not assign precise UTC Timestamp");
-        }
-    }
+        let i = this.bisectLeftAnchors(readingID);
+        let last: AnchorPoint = copyAnchor(this.anchorPoints[i]);
 
-    private getTimeSegment(readingID: number): TimeSegment {
-        let timeSegment: TimeSegment = this.timeSegments[this.timeSegments.length -1];
-        for (let segment of this.timeSegments){
-            if (readingID >= segment.firstReading.id && readingID <= segment.lastReading.id) {
-                timeSegment = segment;
-            }
-        }
-        return timeSegment;
-    }
+        if (uptime != null) last.uptime = uptime;
 
-    private assignUTCFromAnchor(uptime: number, anchor: AnchorPoint): Date {
-        let anchorOffset: number;
-        if (anchor.localTime){
-            anchorOffset = uptime - anchor.localTime;
-        } else {
-            let nextAnchor;
-            let nextSegment;
-            let increment = anchor.readingId;
-            while (!nextAnchor || !(nextAnchor.localTime)){
-                nextSegment = this.getTimeSegment(increment);
-                nextAnchor = nextSegment.anchorPoint;
-                if (nextSegment.lastReading.id === Infinity && (!(nextAnchor) || !(nextAnchor.localTime))){
-                    throw new ArgumentError('Cannot assign UTC from anchorpoint: no local time reference');
-                } else {
-                    increment = nextSegment.lastReading.id + 1;
-                }
-            }
-            anchor.localTime = nextAnchor.localTime - (Math.ceil((nextAnchor.utcTime.valueOf() - anchor.utcTime.valueOf()) / 1000));
-            anchorOffset = uptime - anchor.localTime;
-        }
+        let exact = true;
+        let accumDelta: number = 0;
+
+        if (last.readingId === readingID && last.utcTime != null) return last.utcTime;
         
-        let utcTime = new Date(anchor.utcTime.valueOf() + (anchorOffset * 1000));
-        return utcTime;
+        i += 1;
+        while (i < this.anchorPoints.length) {
+            let curr = this.anchorPoints[i];
+
+            if (last.uptime == null || curr.uptime == null) {
+                exact = false;
+            } else if (curr.isBreak || curr.uptime < last.uptime) {
+                exact = false;
+            } else {
+                accumDelta += curr.uptime - last.uptime;
+            }
+
+            last = curr;
+            if (curr.utcTime != null) break;
+
+            i += 1;
+        }
+
+        if (last.utcTime == null) throw new ArgumentError("There were no points with a UTC reference after the designed reading id");
+        if (this.imprecise === false && !exact) throw new ArgumentError("Could not assign precise UTC Timestamp");
+
+        return new Date(last.utcTime.valueOf() - (accumDelta * 1000));
+    }
+
+    private bisectLeftAnchors(readingID: number): number {
+        let low = 0;
+        let high = this.anchorPoints.length;
+
+        this.ensureAnchorPointsSorted();
+
+        while (low < high) {
+            let mid = low + high >>> 1;
+            if (this.anchorPoints[mid].readingId < readingID) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }    
+        }
+
+        return low;
+    }
+
+    private ensureAnchorPointsSorted() {
+        if (this.anchorPointsSorted) return;
+
+        this.anchorPoints.sort((a, b) => {
+            return a.readingId - b.readingId;
+        });
+
+        this.anchorPointsSorted = true;
     }
 
     /*
@@ -159,61 +153,53 @@ export class UTCAssigner {
      * utc time.  It is these anchor points that are used as ground
      * truth values to assign utc times to all other points.
      */
-    public addAnchorPoint(readingID: number, localTime: number | undefined, utc: Date) {
-        if (localTime && !!(localTime & (1 << 31)) === true){
-            localTime = undefined;
+    public addAnchorPoint(readingID: number, uptime: number | null, utc: Date | null, isBreak: boolean = false) {
+        if (readingID === 0) return;
+        if (uptime == null && utc == null) return;
+        if (readingID in this.addedIDSet) return;
+
+        /**
+         * If the uptime itself is specified as a UTC time rather than an uptime,
+         * convert it to a UTC time and null out the uptime since we don't know
+         * what the uptime was (since the timestamp was in UTC rather than uptime).
+         * 
+         * If an explicit UTC time was also passed, ignore this anchor point and return
+         * since we would know which utc to trust, the uptime interpreted as UTC or the
+         * one that was explicitly passed.
+         */
+        if (uptime != null && uptime & ( 1 << 31)) {
+            if (utc != null) return;
+
+            //Mask out high bit to get the actual seconds since 2000
+            uptime &= (1 << 31) - 1;
+            utc = rtcTimestampToDate(uptime);
+            uptime = null;
         }
+
 
         let anchorPoint: AnchorPoint = {
             readingId: readingID,
-            localTime: localTime,
-            utcTime: utc
+            uptime: uptime,
+            utcTime: utc,
+            isBreak: isBreak
         }
-        let segment = this.getTimeSegment(readingID);
-        segment.anchorPoint = anchorPoint;
-        this.catUTC.info(`Adding Anchor Point: ${JSON.stringify(segment)}`);
+
+        this.anchorPoints.push(anchorPoint);
+        this.addedIDSet[readingID] = true;
+        this.anchorPointsSorted = false;
     }
 
-    /**
-     * Inform the UTCAssigner that local times before and after the given
-     * readingID are not comparable.  This is usually due to a device reset
-     * that causes its local time to be cleared by to 0, however it could
-     * also be because the device had its clock explicitly reset.
-     */
-    public addTimeBreak(readingID: number, uptime: number) {
-        let segment = new TimeSegment(this.currentStart, {id: readingID - 1, uptime: uptime});
-        
-        let last = this.timeSegments.pop();
-        // keep anchorPoints in the appropriate segment
-        if (last && last.anchorPoint && (last.anchorPoint.readingId < readingID) && (last.anchorPoint.readingId > this.currentStart.id)){
-            segment.anchorPoint = last.anchorPoint;
-            last.anchorPoint = undefined;
-        }
-        this.catUTC.info(`Adding Time Break: ${JSON.stringify(segment)}`);
-        this.timeSegments.push(segment);
-        this.currentStart = {id: readingID, uptime: 0};
+    public addReading(reading: RawReading) {
+        let isBreak = false;
+        let utc: Date | null = null;
 
-        if (last && last.placeholder){
-            last.firstReading.id = readingID;
-            last.lastReading.id = Infinity;
-            last.anchorPoint = last.anchorPoint;
-            last.placeholder = true;
-            this.timeSegments.push(last);
-        }          
-    }
+        if (reading.stream in this.breakStreams) isBreak = true;
 
-    // If we're not extrapolating, replace the [placeholder] final time segment last id (infinity) with known last reading id
-    private closeSegments(){
-        if (!this.extrapolation){
-            if (this.currentStart){
-                let finalSegment = this.timeSegments.pop();
-                let newFinalSegment = new TimeSegment(this.currentStart, this.lastReading);
-                if (finalSegment && finalSegment.anchorPoint){
-                    newFinalSegment.anchorPoint = finalSegment.anchorPoint;
-                }  
-                this.timeSegments.push(newFinalSegment);
-            }
+        if (reading.stream in this.anchorStreams) {
+            utc = this.anchorStreams[reading.stream](reading.stream, reading.id, reading.timestamp, reading.value);
         }
+
+        this.addAnchorPoint(reading.id, reading.timestamp, utc, isBreak);
     }
 
     /**
@@ -226,14 +212,25 @@ export class UTCAssigner {
      * If the value of the stream cannot be directly interpreted as the number
      * of seconds since the year 2000, you can pass an optional callable that
      * will be called to determine the correct UTC timestamp.
+     * 
+     * You can pass a literal string "rtc" or "epoch" for valueProcessor if you want
+     * the value to be treated as seconds since 1/1/2000 or seconds since 1/1/1970 respectively.
+     * 
+     * Alternatively, you can pass a function that returns a Date.
      */
-    public markAnchorStream(streamID: number, valueProcessor?: AnchorValueProcessor) {
-        if (!valueProcessor){
-            valueProcessor = function(streamID: number, readingID: number, uptime: number, value: number) {
+    public markAnchorStream(streamID: number, valueProcessor?: AnchorValueProcessor | "rtc" | "epoch") {
+        if (valueProcessor == null || valueProcessor === "rtc") {
+            valueProcessor = function(_streamID: number, _readingID: number, _uptime: number, value: number) {
                 // assume value can be interpreted as-is as seconds since 2000
-                return value;
+                return rtcTimestampToDate(value);
+            }
+        } else if (valueProcessor === "epoch") {
+            valueProcessor = function(_streamID: number, _readingID: number, _uptime: number, value: number) {
+                // assume value can be interpreted as-is as seconds since 2000
+                return new Date(value * 1000);
             }
         }
+
         this.anchorStreams[streamID] = valueProcessor;
 
     }
@@ -243,37 +240,23 @@ export class UTCAssigner {
      * a stream previously passed to markAnchorStream.
      */
     public addAnchorsFromReport(report: SignedListReport) {
-        for (let reading of report.readings){
-            if (reading.stream in Object.keys(this.anchorStreams)){
-                let utc = this.anchorStreams[reading.stream](reading.stream, reading.id, reading.timestamp, reading.value)
-                this.addAnchorPoint(reading.id, reading.timestamp, new Date((utc + SECONDS_AT_2000) * 1000));
-            }
+        for (let reading of report.readings) {
+            this.addReading(reading);
         }
-        this.catUTC.info(`Adding Anchor Point from report header: ${report.header.reportID} ${report.header.sentTime} ${report.receivedTime}`)
+
         this.addAnchorPoint(report.header.reportID, report.header.sentTime, report.receivedTime);
     }
+}
 
-    /**
-     * Automatically call addTimeBreak for all reset readings found 
-     * in this report.  Reset readings are those with stream id: 0x5C00.
-     */
-    public addBreaksFromReport(report: SignedListReport) {
-        let lastReadingTime = 0;
-        for (let reading of report.readings){
-            if (reading.stream == 0x5C00){
-                this.addTimeBreak(reading.id, reading.timestamp);
-            }
-            // check for time dropping to 0
-            if (reading.timestamp < lastReadingTime){
-                this.addTimeBreak(reading.id, reading.timestamp);
-                lastReadingTime = 0;
-            } else {
-                lastReadingTime = reading.timestamp;
-            }
+function rtcTimestampToDate(seconds: number): Date {
+    return new Date((seconds + SECONDS_AT_2000) * 1000);
+}
 
-            if (!this.lastReading || reading.id > this.lastReading.id){
-                this.lastReading = {id: reading.id, uptime: reading.timestamp};
-            }
-        }
+function copyAnchor(src: AnchorPoint): AnchorPoint {
+    return {
+        readingId: src.readingId,
+        uptime: src.uptime,
+        utcTime: src.utcTime,
+        isBreak: src.isBreak
     }
 }

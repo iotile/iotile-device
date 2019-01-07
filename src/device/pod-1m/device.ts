@@ -10,7 +10,7 @@ import { IOTileEvent, FlexibleDictionaryReport } from "../../common/flexible-dic
 import { HeatshrinkDecoder } from "heatshrink-ts";
 import { SignedListReport } from "../../common/iotile-reports";
 import { decompressWaveforms, createWaveformEvents } from "./utilities";
-import { ensureUTCTimestamps } from "./utc-reconstruction";
+import { ensureUTCTimestamps, dropNonUTCTimestamps } from "./utc-reconstruction";
 
 
 export class POD1M extends LoggingBase {
@@ -107,10 +107,29 @@ export class POD1M extends LoggingBase {
          * If we have waveforms without UTC, roll back the environmental streamer
          * to make sure that we receive the data point that contains the waveform's
          * unique id so we can use UTCAssigner to assign it a correct timestamp.
+         * 
+         * We roll back both the environmental / shock id streamer (0) as well as the
+         * trip data streamer (2) to ensure two things:
+         * 
+         * 1. We need to be able to map the unique id stored for each waveform in the
+         *    accelerometer tile to the unique id assigned by the controller since the
+         *    controller's unique ID is what we can use to reconstruct a UTC timestamp
+         * 2. We need to know the start and end trip readings (if there are any) since
+         *    those have an embedded unix epoch timestamp in their values, which we can
+         *    use to guarantee that we have at least one good UTC to reading ID match.
+         *    These readings are sent by streamer 2 so we roll that streamer back to 
+         *    make sure we receive them again in case they have already been sent to the
+         *    cloud.
+         * 
+         * Note that we roll both streamer back to id 1 not id 0 since rolling back to 
+         * ID 0 is broken on some firmware versions and cannot be trusted to work 
+         * correctly.
          */
         if (missingUTCCount > 0) {
             this.logWarning(`Found ${missingUTCCount} waveforms without UTC timestamps, will need to reconstruct timestamps`);
-            await this.device.acknowledgeStreamerRPC(0, 0, true);
+
+            await this.device.acknowledgeStreamerRPC(0, 1, true);
+            await this.device.acknowledgeStreamerRPC(2, 1, true);
         } else {
             this.logInfo("All waveforms had UTC timestamps, no reconstruction necessary");
         }
@@ -119,8 +138,12 @@ export class POD1M extends LoggingBase {
         
         if (missingUTCCount > 0) {
             ensureUTCTimestamps(decodedWaveforms, reports);
-
-            //FIXME: Discard any waveforms whose UTC timestamps could not be assigned.
+            
+            let dropped = dropNonUTCTimestamps(decodedWaveforms);
+            
+            if (dropped > 0) {
+                this.logError(`Dropped ${dropped} waveforms whose timestamps could not be determined`);  
+            }
         }
 
         let waveformEvents = createWaveformEvents(decodedWaveforms);
