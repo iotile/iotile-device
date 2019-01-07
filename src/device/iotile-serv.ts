@@ -15,6 +15,7 @@ import {AbstractNotificationService} from "../common/notification-service";
 import {catAdapter} from "../config";
 import { MockBleService } from "../mocks/mock-ble-serv";
 import { Category } from "typescript-logging";
+import { SlidingWindowReorderer } from "../common/sliding-window";
 
 
 /**
@@ -846,10 +847,12 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     
     //If this is the first listener registered, start notification on the characteristic.
     return new Promise<() => Promise<void>>(function (resolve, reject) {
-      if (that.connectedDevice){
+      if (that.connectedDevice) {
+        let slidingWindow = new SlidingWindowReorderer((value: ArrayBuffer) => {charManager.handleData(value);});
+
         window.ble.startNotification(that.connectedDevice.connectionID, IOTileServiceName, that.characteristicNames[char],
-          function(data) {
-            charManager.handleData(data);
+          <any>function(data: ArrayBuffer, counter: number) {
+            slidingWindow.call(data, counter);
           }, function (failure) {
             charManager.removeListener(handlerID);
             reject(failure);
