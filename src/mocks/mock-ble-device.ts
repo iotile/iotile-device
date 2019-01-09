@@ -14,7 +14,7 @@ export interface MockDeviceArgs {
 }
 
 export class MockBLEDevice {
-  private advertising: ArrayBuffer | SharedArrayBuffer;
+  public advertising: ArrayBuffer | SharedArrayBuffer;
   public rssi: number;
   public connected: boolean;
   public id: number;
