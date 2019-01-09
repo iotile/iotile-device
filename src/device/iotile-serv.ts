@@ -92,6 +92,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   private scriptInterface: IOTileScriptInterface;
   private tracingInterface: IOTileTracingInterface;
   private tracingOpen: boolean;
+  private platform: Platform;
 
   private charManagers: {[key: number]: CharacteristicManager} = {};
   private characteristicNames: {[key: number]: string} = {};
@@ -110,7 +111,8 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
   constructor (Config: any, notificationService: AbstractNotificationService, platform: Platform) {
     super();
     
-    this.adParser = new IOTileAdvertisementService(Config.BLE.ARCH_BLE_COMPANY_ID, platform);
+    this.platform = platform;
+    this.adParser = new IOTileAdvertisementService();
     this.config = Config;
     this.catAdapter = catAdapter;
     this.notification = notificationService;
@@ -354,6 +356,8 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
       window.ble.startScan([], function (peripheral) {
           try {
             let device = that.createIOTileAdvertisement(peripheral);
+
+            if (device == null) return;
             //Make sure we only report each device once even on OSes like iOS that
             //can return multiple scan events per device in a given scan period.
             if (device.slug in uniqueDevices) {
@@ -363,10 +367,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
             uniqueDevices[device.slug] = true;
             foundDevices.push(device);
           } catch (err) {
-            if (!(err instanceof Errors.InvalidAdvertisingData)) {
-              that.catAdapter.error("Error Scanning for Devices", new Error(JSON.stringify(err)));
-              throw err;
-            }
+            that.catAdapter.error("Error Scanning for Devices", new Error(JSON.stringify(err)));
           }
         });
       
@@ -1004,7 +1005,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
     this.notification.notify(eventName, args);
   }
 
-  private createIOTileAdvertisement(peripheral: any) : IOTileAdvertisement {
+  private createIOTileAdvertisement(peripheral: any) : IOTileAdvertisement | null {
     return this.adParser.processAdvertisement(peripheral.id, peripheral.rssi, peripheral.advertising);
   }
 
@@ -1053,7 +1054,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
         * connection and the result stored in this.supportsFastWrites.
         */
       if (that.connectedDevice){
-        if (that.supportsFastWrites || that.adParser.platform() === Platform.Android) {
+        if (that.supportsFastWrites || that.platform === Platform.Android) {
           window.ble.writeWithoutResponse(that.connectedDevice.connectionID, IOTileServiceName, that.characteristicNames[char], value, resolveFunction, function(err) {
             clearTimeout(removeHandler);
             reject(new Errors.WriteError(err));

@@ -1,10 +1,17 @@
 # Release Notes for iotile-device
 
+## 0.1.0-rc.2
+
+- Refactor advertisement processing to be more robust and maintainable.  Fix bug processing
+  otherConnected flag so that we properly show when other users are connected to a POD and
+  don't let the mobile app connect.
+
 ## 0.1.0-rc.1
 
 - Refactor UTC reconstruction process be algorithmically faster and based on anchor points directly
   rather than explicit time segments.
 - Integrate UTC reconstruction process into waveform processing.
+- Add fix for out of order notifications on Android.
 
 ## 0.0.28
 
