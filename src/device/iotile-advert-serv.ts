@@ -42,7 +42,7 @@ export class IOTileAdvertisementService {
      
      let manuData = advert.getManufacturerData(ArchManufacturerCode);
      if (manuData == null) return null;
-     if (manuData.byteLength < 6) return null; //FIXME: Make sure this is the right number
+     if (manuData.byteLength < 6) return null; //6 is the number of bytes in the initial advertisement packet (not including anything in the scan response)
 
      return this.processValidAdvertisementV1(connectionID, rssi, advert);
   }
