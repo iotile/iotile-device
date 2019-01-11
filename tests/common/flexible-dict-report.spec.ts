@@ -58,9 +58,22 @@ describe("FlexibleDictionaryReport", () => {
     it("should encode to msgpack correctly", () => {
         let report = new FlexibleDictionaryReport(10, [], [event2, event1]);
 
+        let obj = report.toObject();
         let encoded = report.toMsgpack();
 
-        let obj = decode(new Uint8Array(encoded));
+        obj = decode(new Uint8Array(encoded));
         expect(obj).toEqual(CORRECT_REPORT);
+    });
+
+    it("should be able to encode a report with length < 2048", () => {
+      let report = new FlexibleDictionaryReport(10, [], []);
+
+      let encoded = report.toMsgpack();
+      let obj = report.toObject();
+      let decoded = decode(new Uint8Array(encoded));
+
+      //Makes sure we truncate the report correctly.
+      expect(encoded.byteLength).toEqual(144);
+      expect(obj).toEqual(decoded);
     });
 });
