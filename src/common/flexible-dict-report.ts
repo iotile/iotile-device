@@ -203,7 +203,15 @@ export class FlexibleDictionaryReport extends IOTileReport {
         let obj = this.toObject();
 
         let encoded = encode(obj);
-        return <ArrayBuffer>encoded.buffer;
+
+        /*
+         * The raw data returned by encode() is a Uint8Array.  This has
+         * a length that can be smaller than the underlying ArrayBuffer
+         * that is overallocated to minimize reallocations.  When we
+         * return the underlying ArrayBuffer, we need to make sure to
+         * truncate it to the same size as the Uint8Array.
+         */
+        return <ArrayBuffer>encoded.buffer.slice(0, encoded.byteLength);
     }
 
     public get receivedTime(): Date {

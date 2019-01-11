@@ -1,5 +1,12 @@
 # Release Notes for iotile-device
 
+## 0.1.0
+
+- Fix bug in FlexibleDictionaryReport that improperly created msgpack files when the size of
+  the file was smaller than 2048 bytes, which would be when there were no POD-1M waveforms.
+
+  The issue was caused by improper truncation of excess 0 padding on the file.
+
 ## 0.1.0-rc.2
 
 - Refactor advertisement processing to be more robust and maintainable.  Fix bug processing
