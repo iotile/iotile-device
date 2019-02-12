@@ -28,6 +28,12 @@ export class Advertisement {
         return this.elements.manufacturerData[manu];
     }
 
+    public getServiceData(): ArrayBuffer | SharedArrayBuffer | null {
+        if (this.elements.serviceData == null) return null;
+        
+        return this.elements.serviceData;
+    }
+
     public static FromAndroid(data: AndroidAdvertisement): Advertisement {
         let i = 0;
         let advert: RawAdvertisement = {};
@@ -97,6 +103,16 @@ export class Advertisement {
                         } 
                     }
                     break;
+
+                    case AdElementTypeCode.ServiceData:
+                    let uuid = Advertisement.ParseServiceUUIDFromData(elementData);
+                    if (uuid != null) advert.serviceList = [uuid];
+
+                    let serviceData = Advertisement.ParseServiceData(elementData);
+                    if (serviceData != null) {
+                        advert.serviceData = serviceData;
+                    }
+                    break;
                 }    
             }
 
@@ -137,6 +153,14 @@ export class Advertisement {
         return result;
     }
 
+    public static ParseServiceData(data: ArrayBuffer | SharedArrayBuffer): (ArrayBuffer | SharedArrayBuffer | null) {
+        //Make sure we received enough data for the service UUID
+        if (data.byteLength < 2) return null;
+
+        let serviceData = data.slice(2);
+        return serviceData;
+    }
+
     public static MergeManufacturerData(orig: ManufacturerData, update: ManufacturerData) {
         for (let key in update) {
             if (key in orig) {
@@ -162,5 +186,15 @@ export class Advertisement {
         }
 
         return uuids;
+    }
+
+    public static ParseServiceUUIDFromData(data: ArrayBuffer | SharedArrayBuffer): string | null {
+        if (data.byteLength < 2) return null;
+
+        let binUUID = data.slice(0, 16);
+         //We only need the last 16bits of the 128bit UUID
+        let uuid = parseBinaryUUID(binUUID, true).slice(32);
+
+        return uuid;
     }
 }
