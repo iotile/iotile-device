@@ -60,6 +60,16 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
         expect(ad1.containsService('00002000-3ff7-53BA-E611-132C0FF60F63')).toBeTruthy();
     });
 
+    it('it should construct adverts from android adverising packets (v2)', function() {
+        let ad1Raw = base64ToArrayBuffer("AgEGGxbd/dwKAAAAAAAAANwAAGsF/38AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
+        let ad1 = Advertisement.FromAndroid(ad1Raw);
+        
+        expect(ad1.elements).toEqual({"serviceData": base64ToArrayBuffer("3AoAAAAAAAAA3AAAawX/fwAAAAAAAAAA"), "serviceList": ["FDDD"]});
+
+        expect(ad1.containsService('FDDD')).toBeTruthy();
+    });
+
     it('it should construct adverts from ios advertising packets (v1)', function() {
         let advertising = {
             kCBAdvDataIsConnectable: 1,
@@ -97,33 +107,40 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
         });
     });
 
-    it('should correctly parse android advertiseing packets', function() {
+    it('should correctly parse android advertising packets', function() {
         IOTileAdvert = new IOTileAdvertisementService();
 
         let ad1Raw = base64ToArrayBuffer("AgEGEQZjD/YPLBMR5rpT9z8AIAAACf/AA3oBAAAYABP/wAOEA///AAAAAAAAAABqrZcABwlJT1RpbGUAAAA=");
         let ad2Raw = base64ToArrayBuffer("AgEGEQZjD/YPLBMR5rpT9z8AIAAACf/AAzgFAAAYABP/wAPMA///AAAAAAAAAAAAAAAABwlJT1RpbGUAAAA=");
         let ad3Raw = base64ToArrayBuffer("AgEGEQZCAHSp/1IQmzNJNZsAAWjvBwlUaGluZ3kH/1kAhV7j8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="); //Not IOTile
         let ad4Raw = base64ToArrayBuffer("Hv8GAAEJIALOQJq4mRjV2JFDLm3VyttXq6z/qrF1kQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="); //Not IOTile
+        let ad5Raw = base64ToArrayBuffer("AgEGGxbd/dwKAAAAAAAAANwAAGsF/38AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="); //v2
 
         let ad1 = IOTileAdvert.processAdvertisement('test', -50, ad1Raw);
         let ad2 = IOTileAdvert.processAdvertisement('test', -50, ad2Raw);
         let ad3 = IOTileAdvert.processAdvertisement('test', -50, ad3Raw);
         let ad4 = IOTileAdvert.processAdvertisement('test', -50, ad4Raw);
+        let ad5 = IOTileAdvert.processAdvertisement('test', -50, ad5Raw);
 
         expect(ad3).toBeNull();
         expect(ad4).toBeNull();
 
         expect(ad1).not.toBeNull();
         expect(ad2).not.toBeNull();
+        expect(ad5).not.toBeNull();
 
-        if (ad1 != null && ad2 != null) {
+        if (ad1 != null && ad2 != null && ad5 != null) {
             expect(ad1.flags).toEqual({"hasData":false,"lowVoltage":false,"otherConnected":false,"robustReports":true,"fastWrites":true});
             expect(ad1.slug).toEqual("d--0000-0000-0000-017a");
             expect(ad1.deviceID).toEqual(0x17a);
 
             expect(ad2.flags).toEqual({"hasData":false,"lowVoltage":false,"otherConnected":false,"robustReports":true,"fastWrites":true});
             expect(ad2.slug).toEqual("d--0000-0000-0000-0538");
-            expect(ad2.deviceID).toEqual(0x538);   
+            expect(ad2.deviceID).toEqual(0x538);
+
+            expect(ad5.flags).toEqual({"hasData":false,"lowVoltage":false,"otherConnected":false,"robustReports":true,"fastWrites":true});
+            expect(ad5.slug).toEqual("d--0000-0000-0000-0adc");
+            expect(ad5.deviceID).toEqual(0xadc);
         }
     });
 
