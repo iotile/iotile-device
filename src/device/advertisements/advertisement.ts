@@ -1,4 +1,4 @@
-import {RawAdvertisement, IOSAdvertisement, AndroidAdvertisement, AdElementTypeCode, ManufacturerData} from "./constants";
+import {RawAdvertisement, IOSAdvertisement, AndroidAdvertisement, AdElementTypeCode, ManufacturerData, IOTileV2ServiceUUID} from "./constants";
 import { parseUTF8String, parseBinaryUUID } from "./utilities";
 import { copyArrayBuffer } from "@iotile/iotile-common";
 
@@ -133,8 +133,18 @@ export class Advertisement {
                 advert.manufacturerData = manuData;
             }
         }
+        if (data.kCBAdvDataServiceData != null) {
+            let UUID = Object.keys(data.kCBAdvDataServiceData)[0];
+            
+            let serviceData = data.kCBAdvDataServiceData[UUID];
 
-        if (data.kCBAdvDataServiceUUIDs != null) advert.serviceList = data.kCBAdvDataServiceUUIDs;
+            if (serviceData != null) {
+                advert.serviceData = serviceData;
+                advert.serviceList = [UUID]
+            }
+        }
+
+        if (data.kCBAdvDataServiceUUIDs != null && advert.serviceList == null) advert.serviceList = data.kCBAdvDataServiceUUIDs;
 
         return new Advertisement(advert);
     }
