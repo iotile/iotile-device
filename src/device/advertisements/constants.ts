@@ -37,11 +37,13 @@ export type IOSAdvertisement = {
 
 export type ManufacturerData = {[key: number]: ArrayBuffer | SharedArrayBuffer};
 
+export type ServiceData = {[key: number]: ArrayBuffer | SharedArrayBuffer};
+
 export type AndroidAdvertisement = ArrayBuffer | SharedArrayBuffer;
 
 export interface RawAdvertisement {
     localName?: string,
     manufacturerData?: ManufacturerData,
-    serviceData?: ArrayBuffer | SharedArrayBuffer,
+    serviceData?: ServiceData,
     serviceList?: string[]
 }
