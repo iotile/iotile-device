@@ -92,20 +92,9 @@ export function parseBinaryUUID(data: ArrayBuffer | SharedArrayBuffer, reverse: 
 export function parseBinary16BitUUID(data: ArrayBuffer | SharedArrayBuffer, reverse: boolean): string {
     if (data.byteLength !== 2) throw new Error(`A binary 16-bit uuid must be exactly 2 bytes long, length was  ${data.byteLength}`);
 
-    if (reverse) {
-        let reversedData = new Uint8Array(2);
-        let origData = new Uint8Array(data);
-
-        for (let i = 0; i < 2; ++i) {
-            reversedData[1 - i] = origData[i];
-        }
-
-        data = <any>reversedData.buffer;
-    }
-
     let view = new DataView(data);
 
-    let UUID = numberToHexString(view.getUint16(0, false), 4);
+    let UUID = numberToHexString(view.getUint16(0, reverse), 4);
 
     return UUID.toUpperCase();
 }
