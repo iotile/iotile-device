@@ -3,7 +3,7 @@ import {IOTileAdvertisementService} from "../../src/device/iotile-advert-serv";
 import {Advertisement} from "../../src/device/advertisements";
 import {setupMockBLE} from "../../src/mocks/helpers/mock-ble-setup";
 import {MockBLEDevice} from "../../src/mocks/mock-ble-device";
-import { parseBinaryUUID } from "../../src/device/advertisements/utilities";
+import { parseBinaryUUID, parseBinary16BitUUID } from "../../src/device/advertisements/utilities";
 import { VirtualDevice } from "../../src/mocks/virtual-device";
 
 describe('module: iotile.device, IOTileAdvertisingService', function () {
@@ -19,7 +19,7 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
         setupMockBLE({});
     });
 
-    it('should correctly turn a uuid into a string', function() {
+    it('should correctly turn a 128 bit uuid into a string', function() {
         let ex1 = [99,15,246,15,44,19,17,230,186,83,247,63,0,32,0,0];
         let binUUID: ArrayBuffer = <any>new Uint8Array(ex1).buffer;
 
@@ -32,6 +32,22 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
 
         strUUID = parseBinaryUUID(base64ToArrayBuffer('Yw/2DywTEea6U/c/ACAAAA=='), true);
         expect(strUUID).toEqual('00002000-3FF7-53BA-E611-132C0FF60F63');
+    });
+
+
+    it('should correctly turn a 16 bit uuid into a string', function() {
+        let ex1 = [221,253];
+        let binUUID: ArrayBuffer = <any>new Uint8Array(ex1).buffer;
+
+        let strUUID = parseBinary16BitUUID(binUUID, true);
+        expect(strUUID).toEqual('FDDD');
+
+        //Make sure both endianness directions work
+        strUUID = parseBinary16BitUUID(base64ToArrayBuffer('/d0='), false);
+        expect(strUUID).toEqual('FDDD');
+
+        strUUID = parseBinary16BitUUID(base64ToArrayBuffer('3f0='), true);
+        expect(strUUID).toEqual('FDDD');
     });
 
     it('it should construct adverts from android adverising packets (v1)', function() {
@@ -58,6 +74,16 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
 
         //Verify that capitalization doe not matter
         expect(ad1.containsService('00002000-3ff7-53BA-E611-132C0FF60F63')).toBeTruthy();
+    });
+
+    it('it should construct adverts from android adverising packets (v2)', function() {
+        let ad1Raw = base64ToArrayBuffer("AgEGGxbd/UkKAAAAAAAA1wb6o2oUExAlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
+        let ad1 = Advertisement.FromAndroid(ad1Raw);
+        
+        expect(ad1.elements).toEqual({"serviceData": {0xfddd: base64ToArrayBuffer("SQoAAAAAAADXBvqjahQTECUAAAAAAAAA")}, "serviceList": ["FDDD"]});
+
+        expect(ad1.containsService('FDDD')).toBeTruthy();
     });
 
     it('it should construct adverts from ios advertising packets (v1)', function() {
@@ -97,33 +123,54 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
         });
     });
 
-    it('should correctly parse android advertiseing packets', function() {
+    it('it should construct adverts from ios advertising packets (v2)', function() {
+        let advertising = {
+            kCBAdvDataIsConnectable: 1,
+            kCBAdvDataServiceData: {"FDDD": base64ToArrayBuffer("BYs=")}
+        };
+
+        let advert = Advertisement.FromIOS(advertising);
+        expect(advert.elements).toEqual({
+            "serviceData": {0xfddd: base64ToArrayBuffer("BYs=")},
+            "serviceList": ["FDDD"]
+        });
+    });
+
+    it('should correctly parse android advertising packets', function() {
         IOTileAdvert = new IOTileAdvertisementService();
 
         let ad1Raw = base64ToArrayBuffer("AgEGEQZjD/YPLBMR5rpT9z8AIAAACf/AA3oBAAAYABP/wAOEA///AAAAAAAAAABqrZcABwlJT1RpbGUAAAA=");
         let ad2Raw = base64ToArrayBuffer("AgEGEQZjD/YPLBMR5rpT9z8AIAAACf/AAzgFAAAYABP/wAPMA///AAAAAAAAAAAAAAAABwlJT1RpbGUAAAA=");
         let ad3Raw = base64ToArrayBuffer("AgEGEQZCAHSp/1IQmzNJNZsAAWjvBwlUaGluZ3kH/1kAhV7j8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="); //Not IOTile
         let ad4Raw = base64ToArrayBuffer("Hv8GAAEJIALOQJq4mRjV2JFDLm3VyttXq6z/qrF1kQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="); //Not IOTile
+        let ad5Raw = base64ToArrayBuffer("AgEGGxbd/UkKAAAAAAAA1wb6o2oUExAlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="); //v2
 
         let ad1 = IOTileAdvert.processAdvertisement('test', -50, ad1Raw);
         let ad2 = IOTileAdvert.processAdvertisement('test', -50, ad2Raw);
         let ad3 = IOTileAdvert.processAdvertisement('test', -50, ad3Raw);
         let ad4 = IOTileAdvert.processAdvertisement('test', -50, ad4Raw);
+        let ad5 = IOTileAdvert.processAdvertisement('test', -50, ad5Raw);
 
         expect(ad3).toBeNull();
         expect(ad4).toBeNull();
 
         expect(ad1).not.toBeNull();
         expect(ad2).not.toBeNull();
+        expect(ad5).not.toBeNull();
 
-        if (ad1 != null && ad2 != null) {
+        if (ad1 != null && ad2 != null && ad5 != null) {
             expect(ad1.flags).toEqual({"hasData":false,"lowVoltage":false,"otherConnected":false,"robustReports":true,"fastWrites":true});
             expect(ad1.slug).toEqual("d--0000-0000-0000-017a");
             expect(ad1.deviceID).toEqual(0x17a);
 
             expect(ad2.flags).toEqual({"hasData":false,"lowVoltage":false,"otherConnected":false,"robustReports":true,"fastWrites":true});
             expect(ad2.slug).toEqual("d--0000-0000-0000-0538");
-            expect(ad2.deviceID).toEqual(0x538);   
+            expect(ad2.deviceID).toEqual(0x538);
+
+            expect(ad5.flags).toEqual({"hasData":true,"lowVoltage":true,"otherConnected":true,"robustReports":true,"fastWrites":true,
+            "dataIsEncrypted":false,"isSynchronized": true,"keyIsDeviceKey":true,"keyIsUserKey":false });
+            expect(ad5.slug).toEqual("d--0000-0000-0000-0a49");
+            expect(ad5.deviceID).toEqual(0xa49);
         }
     });
 
@@ -155,7 +202,7 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
         }
     });
 
-    it('should correctly parse ios advertising packets', function() {
+    it('should correctly parse ios advertising packets (v1)', function() {
         IOTileAdvert = new IOTileAdvertisementService();
 
         let advertising = {
@@ -197,6 +244,29 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
             expect(processed.rssi).toBe(-50);
             expect(processed.deviceID).toBe(0xad);
             expect(processed.connectionID).toBe('test');
+        }
+    });
+
+    it('should correctly parse ios advertising packets (v2)', function() {
+        IOTileAdvert = new IOTileAdvertisementService();
+
+        let advertising = {
+            kCBAdvDataIsConnectable: 1,
+            kCBAdvDataServiceData: {"FDDD": base64ToArrayBuffer("SQoAAAAAAADVKPqjahYTECUAAAAAAAAA")},
+            kCBAdvDataServiceUUIDs: 
+            [
+                "FDDD"
+            ]
+        };
+
+        let processed = IOTileAdvert.processAdvertisement('test', -50, advertising);
+
+        expect(processed).not.toBeNull();
+
+        if (processed != null) {
+            expect(processed.rssi).toBe(-50);
+            expect(processed.connectionID).toBe('test');
+            expect(processed.deviceID).toBe(2633);
         }
     });
 });

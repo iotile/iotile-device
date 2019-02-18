@@ -3,6 +3,7 @@
  */
 
 export const IOTileV1ServiceUUID: string = "00002000-3FF7-53BA-E611-132C0FF60F63";
+export const IOTileV2ServiceUUID: string = "FDDD";
 export const ArchManufacturerCode: number = 0x3c0;
 
 export enum AdElementType {
@@ -19,7 +20,8 @@ export enum AdElementTypeCode {
     Incomplete128BitUUIDList = 0x06,
     ManufacturerSpecificData = 0xFF,
     CompleteLocalName = 0x09,
-    ShortenedLocalName = 0x08
+    ShortenedLocalName = 0x08,
+    ServiceData = 0x16
 }
 
 export const IOSAdElementMap = {
@@ -35,11 +37,13 @@ export type IOSAdvertisement = {
 
 export type ManufacturerData = {[key: number]: ArrayBuffer | SharedArrayBuffer};
 
+export type ServiceData = {[key: number]: ArrayBuffer | SharedArrayBuffer};
+
 export type AndroidAdvertisement = ArrayBuffer | SharedArrayBuffer;
 
 export interface RawAdvertisement {
     localName?: string,
     manufacturerData?: ManufacturerData,
-    serviceData?: {[key: string]: ArrayBuffer | SharedArrayBuffer},
+    serviceData?: ServiceData,
     serviceList?: string[]
 }

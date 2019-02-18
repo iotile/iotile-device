@@ -2,7 +2,7 @@ export * from "./common/error-space";
 export * from "./device/iotile-device";
 export {IOTileAdapter} from "./device/iotile-serv";
 export {RPCError, RPCData, IOTileRPCInterface} from "./device/iotile-iface-rpc";
-export {IOTileAdvertisementService, IOTileAdvertisement, IOTileAdvertisementFlags} from "./device/iotile-advert-serv";
+export {IOTileAdvertisementService, IOTileAdvertisement, IOTileAdvertisementFlagsV1, IOTileAdvertisementFlagsV2} from "./device/iotile-advert-serv";
 export * from "./device/pod-1m";
 export * from "./common/iotile-reports";
 export {FlexibleDictionaryReport, FlexibleDictionaryOptions, IOTileEvent} from "./common/flexible-dict-report";

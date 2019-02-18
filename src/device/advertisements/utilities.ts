@@ -77,3 +77,24 @@ export function parseBinaryUUID(data: ArrayBuffer | SharedArrayBuffer, reverse: 
     let guid = `${timeLow}-${timeMid}-${timeHigh}-${clockResHigh}${clockResLow}-${node1}${node2}`;
     return guid.toUpperCase();
 }
+
+/**
+ * Turn a binary 16 bit uuid into a string of the format {xxxx}
+ * 
+ * All hex digits are printing in upper case.
+ *  
+ * @param data A 2-byte data field containin a binary UUID in either little-endian
+ *             or big endian format.
+ * @param reverse Reverse the 2-bytes before parsing them.  This is useful if the
+ *                data is being sent as a 16-bit little endian value such as what
+ *                is included in Bluetooth advertisement packets.
+ */
+export function parseBinary16BitUUID(data: ArrayBuffer | SharedArrayBuffer, reverse: boolean): string {
+    if (data.byteLength !== 2) throw new Error(`A binary 16-bit uuid must be exactly 2 bytes long, length was  ${data.byteLength}`);
+
+    let view = new DataView(data);
+
+    let UUID = numberToHexString(view.getUint16(0, reverse), 4);
+
+    return UUID.toUpperCase();
+}

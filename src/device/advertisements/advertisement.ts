@@ -1,5 +1,5 @@
-import {RawAdvertisement, IOSAdvertisement, AndroidAdvertisement, AdElementTypeCode, ManufacturerData} from "./constants";
-import { parseUTF8String, parseBinaryUUID } from "./utilities";
+import {RawAdvertisement, IOSAdvertisement, AndroidAdvertisement, AdElementTypeCode, ManufacturerData, ServiceData} from "./constants";
+import { parseUTF8String, parseBinaryUUID, parseBinary16BitUUID } from "./utilities";
 import { copyArrayBuffer } from "@iotile/iotile-common";
 
 export class Advertisement {
@@ -26,6 +26,12 @@ export class Advertisement {
         if (this.elements.manufacturerData[manu] == null) return null;
 
         return this.elements.manufacturerData[manu];
+    }
+
+    public getServiceData(serviceUUID: number): ArrayBuffer | SharedArrayBuffer | null {
+        if (this.elements.serviceData == null) return null;
+        
+        return this.elements.serviceData[serviceUUID];
     }
 
     public static FromAndroid(data: AndroidAdvertisement): Advertisement {
@@ -97,6 +103,22 @@ export class Advertisement {
                         } 
                     }
                     break;
+
+                    case AdElementTypeCode.ServiceData:
+                    let uuid = Advertisement.ParseServiceUUIDFromData(elementData);
+                    if (uuid != null) {
+                        advert.serviceList = [uuid];
+
+                        let serviceData = Advertisement.ParseServiceData(elementData, parseInt(uuid, 16));
+                        if (serviceData != null) {
+                            if (advert.serviceData != null) {
+                                Advertisement.MergeServiceData(advert.serviceData, serviceData);
+                            } else {
+                                advert.serviceData = serviceData;  
+                            } 
+                        }
+                    }
+                    break;
                 }    
             }
 
@@ -117,8 +139,18 @@ export class Advertisement {
                 advert.manufacturerData = manuData;
             }
         }
+        if (data.kCBAdvDataServiceData != null) {
+            let UUID = Object.keys(data.kCBAdvDataServiceData)[0];
+            
+            let serviceData: ServiceData = {[parseInt(UUID, 16)]: data.kCBAdvDataServiceData[UUID]};
 
-        if (data.kCBAdvDataServiceUUIDs != null) advert.serviceList = data.kCBAdvDataServiceUUIDs;
+            if (serviceData != null) {
+                advert.serviceData = serviceData;
+                advert.serviceList = [UUID]
+            }
+        }
+
+        if (data.kCBAdvDataServiceUUIDs != null && advert.serviceList == null) advert.serviceList = data.kCBAdvDataServiceUUIDs;
 
         return new Advertisement(advert);
     }
@@ -137,7 +169,31 @@ export class Advertisement {
         return result;
     }
 
+    public static ParseServiceData(data: ArrayBuffer | SharedArrayBuffer, serviceUUID: number): ({[key: number]: ArrayBuffer | SharedArrayBuffer} | null) {
+        //Make sure we received enough data for the service UUID
+        if (data.byteLength < 2) return null;
+
+        let serviceData = data.slice(2);
+
+        let result: {[key: number]: ArrayBuffer | SharedArrayBuffer} = {};
+        result[serviceUUID] = serviceData;
+
+        return result;
+    }
+
     public static MergeManufacturerData(orig: ManufacturerData, update: ManufacturerData) {
+        for (let key in update) {
+            if (key in orig) {
+                let newSize = orig[key].byteLength + update[key].byteLength;
+                let newBuffer = new ArrayBuffer(newSize);
+
+                copyArrayBuffer(newBuffer, orig[key], 0, 0, orig[key].byteLength);
+                copyArrayBuffer(newBuffer, update[key], 0, orig[key].byteLength, update[key].byteLength);
+            }
+        }
+    }
+
+    public static MergeServiceData(orig: ServiceData, update: ServiceData) {
         for (let key in update) {
             if (key in orig) {
                 let newSize = orig[key].byteLength + update[key].byteLength;
@@ -162,5 +218,14 @@ export class Advertisement {
         }
 
         return uuids;
+    }
+
+    public static ParseServiceUUIDFromData(data: ArrayBuffer | SharedArrayBuffer): string | null {
+        if (data.byteLength < 2) return null;
+
+        let binUUID = data.slice(0, 2);
+        let uuid = parseBinary16BitUUID(binUUID, true);
+
+        return uuid;
     }
 }
