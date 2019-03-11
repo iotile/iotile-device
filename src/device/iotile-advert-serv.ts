@@ -101,7 +101,7 @@ export class IOTileAdvertisementService {
      * We skip the 4 bytes betweein the uuid and the flags since this contains information
      * relevant for decrypting broadcast information but not for what we need here.
      */
-    let [uuid, rawFlags] = unpackArrayBuffer("L4xB", serviceData.slice(0, 9))
+    let [uuid, rawFlags] = unpackArrayBuffer("L3xB", serviceData.slice(0, 8))
     let slug = deviceIDToSlug(uuid);
     let flags = parseFlagsV2(rawFlags);
 
