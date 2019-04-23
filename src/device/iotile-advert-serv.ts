@@ -131,7 +131,7 @@ function parseFlagsV1(flags: number): IOTileAdvertisementFlagsV1 {
 
 
 /**
-  * Parse a 16-bit integer with flags from an advertising packet into an IOTileAdvertisementFlagsV1 object
+  * Parse a 16-bit integer with flags from an advertising packet into an IOTileAdvertisementFlagsV2 object
   */
  function parseFlagsV2(flags: number): IOTileAdvertisementFlagsV2 {
   return {
