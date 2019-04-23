@@ -1,6 +1,7 @@
 import {tileRPC, VirtualTile, RPCResponse, VersionInfo, packError} from "../virtual-device";
 import { ArgumentError } from "@iotile/iotile-common";
 import { buildIndividualReport } from "../utilities";
+import { convertToSecondsSince2000 } from "../../device/iotile-device";
 
 export interface StreamValue {
     timestamp: number,
@@ -165,28 +166,110 @@ export class BasicControllerTile extends VirtualTile {
         return [this.hwTag];
     }
 
+    @tileRPC(0x1001, "", "L")
+    public getCurrentDeviceTime(): RPCResponse {
+        let secondsSince2000 = convertToSecondsSince2000(new Date())
+        return [secondsSince2000];
+    }
+
     @tileRPC(0x1008, "", "LLBBBBLL")
     public getDeviceInfo(): RPCResponse {
         return [this.iotileID, 0, 0, 0, 0, 0, this.osInfo, this.appInfo];
     }
 
-    @tileRPC(0x200F, "HHL", "L")
-    public acknowledgeStreamer(streamer: number, force: boolean, value: number): RPCResponse {
-        let oldHighest = this.streamerAcks[streamer]
-        if (oldHighest == null) {
-            oldHighest = 0;
+    @tileRPC(0x2000, "LH", "L")
+    public pushReading(value: number, stream: number) {
+        if (!(stream in this.streams))
+            this.streams[stream] = [];
+        
+        let streamValue: StreamValue = {
+            timestamp: Math.floor(Date.now() / 1000.0),
+            uniqueID: 0,
+            value:value
+        };
+
+        if (this.isBufferedStream(stream)) {
+            streamValue.uniqueID = ++this.highestUniqueID;
         }
 
-        if (streamer < 0x100 && value > this.highestUniqueID) {
-            this.highestUniqueID = value;
+        this.streams[stream].push(streamValue);
+        return [0];
+    }
+
+    @tileRPC(0x2008, "H", "LLLL")
+    public beginDownloadStream(stream: number) {
+        this.downloadStreamState = {
+            stream: stream,
+            currIndex: 0
+        };
+
+        let count = 0;
+        if (stream in this.streams) {
+            count = this.streams[stream].length;
         }
 
-        if (value > oldHighest || force) {
-            this.streamerAcks[streamer] = value;
-            return [0];
+        return [0, 0, count, Math.floor(Date.now() / 1000.0)];
+    }
+
+    @tileRPC(0x2009, "", "LLL")
+    public downloadReading(stream: number) {
+        if (this.downloadStreamState == null) {
+            return [packError(0x8002, 0x8000), 0, 0];
         }
 
-        return [2147713054]; //Return pack_error(kSensorGraphSubsystem, kSGOldAcknowledgeUpdate);
+        let streamData = this.streams[this.downloadStreamState.stream];
+        if (this.downloadStreamState.currIndex >= streamData.length) {
+            return [packError(0x8002, 0x8000), 0, 0];
+        }
+
+        //TODO: There is a newer enhanced version of this call but it requires
+        //supporting multiple call signatures for the same RPC.
+        let streamValue = streamData[this.downloadStreamState.currIndex++];
+        return [0, streamValue.timestamp, streamValue.value];
+    }
+
+    @tileRPC(0x2010, "H", "L")
+    public triggerStreamer(streamer: number): RPCResponse {
+        // TODO: implement
+
+        return [0];
+    }
+
+    @tileRPC(0x200A, "H", "LLLLBBBB")
+    public queryStreamer(streamer: number): RPCResponse {
+        console.log("Querying Streamer:", streamer)
+
+        // TODO: implement
+        const streamerStatus = {
+            lastAttemptTime: 0,
+            lastSuccessTime: 0,
+            lastError: 0,
+            highestAck: 0,
+            lastStatus: 0,
+            backoffNumber: 0,
+            commStatus: 0,
+        };
+
+        const {
+            lastAttemptTime,
+            lastSuccessTime,
+            lastError,
+            highestAck,
+            lastStatus,
+            backoffNumber,
+            commStatus,
+        } = streamerStatus;
+        
+        return [
+            lastAttemptTime,
+            lastSuccessTime,
+            lastError,
+            highestAck,
+            lastStatus,
+            backoffNumber,
+            commStatus,
+            0,
+        ];
     }
 
     @tileRPC(0x200B, "H", "LL")
@@ -209,54 +292,22 @@ export class BasicControllerTile extends VirtualTile {
         return [0, streamData[streamData.length - 1].value];
     }
 
-    @tileRPC(0x2000, "LH", "L")
-    public pushReading(value: number, stream: number) {
-        if (!(stream in this.streams))
-            this.streams[stream] = [];
-        
-        let streamValue: StreamValue = {
-            timestamp: Math.floor(Date.now() / 1000.0),
-            uniqueID: 0,
-            value:value
-        };
-
-        if (this.isBufferedStream(stream)) {
-            streamValue.uniqueID = ++this.highestUniqueID;
+    @tileRPC(0x200F, "HHL", "L")
+    public acknowledgeStreamer(streamer: number, force: boolean, value: number): RPCResponse {
+        let oldHighest = this.streamerAcks[streamer]
+        if (oldHighest == null) {
+            oldHighest = 0;
         }
 
-        this.streams[stream].push(streamValue);
-        return [0];
-    }
-
-    @tileRPC(0x2008, "H", "LLL")
-    public beginDownloadStream(stream: number) {
-        this.downloadStreamState = {
-            stream: stream,
-            currIndex: 0
-        };
-
-        let count = 0;
-        if (stream in this.streams) {
-            count = this.streams[stream].length;
+        if (streamer < 0x100 && value > this.highestUniqueID) {
+            this.highestUniqueID = value;
         }
 
-        return [0, count, Math.floor(Date.now() / 1000.0)];
-    }
-
-    @tileRPC(0x2009, "", "LLL")
-    public downloadReading(stream: number) {
-        if (this.downloadStreamState == null) {
-            return [packError(0x8002, 0x8000), 0, 0];
+        if (value > oldHighest || force) {
+            this.streamerAcks[streamer] = value;
+            return [0];
         }
 
-        let streamData = this.streams[this.downloadStreamState.stream];
-        if (this.downloadStreamState.currIndex >= streamData.length) {
-            return [packError(0x8002, 0x8000), 0, 0];
-        }
-
-        //TODO: There is a newer enhanced version of this call but it requires
-        //supporting multiple call signatures for the same RPC.
-        let streamValue = streamData[this.downloadStreamState.currIndex++];
-        return [0, streamValue.timestamp, streamValue.value];
+        return [2147713054]; //Return pack_error(kSensorGraphSubsystem, kSGOldAcknowledgeUpdate);
     }
 }

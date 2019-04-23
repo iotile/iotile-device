@@ -28,7 +28,7 @@ export interface RPCDescriptor {
  */
 export function rpc(address: number, rpcID: number, argFormat: string, respFormat: string) {
     return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-        target.rpcData = {
+        target[propertyKey].rpcData = {
             argFormat: argFormat,
             respFormat: respFormat,
             rpcID: rpcID,

@@ -1,3 +1,4 @@
+import { ShippingPOD } from './devices/shipping';
 import * as Devices from "./devices";
 import {MockBLEDevice} from "./mock-ble-device";
 import {catMockBLE} from "../config";
@@ -18,7 +19,8 @@ export class MockBleService {
         'nfc300': Devices.NFC300,
         'soilmoisture': Devices.SoilMoisturePOD,
         'temperature': Devices.TemperaturePOD, 
-        'stream_test': Devices.StreamTestDevice
+        'stream_test': Devices.StreamTestDevice,
+        'shipping': Devices.ShippingPOD
       }
 
       let constructor = knownDevices[Config.BLE.MOCK_BLE_DEVICES[devID].type];
