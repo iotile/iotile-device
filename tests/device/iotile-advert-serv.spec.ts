@@ -167,8 +167,8 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
             expect(ad2.slug).toEqual("d--0000-0000-0000-0538");
             expect(ad2.deviceID).toEqual(0x538);
 
-            expect(ad5.flags).toEqual({"hasData":true,"lowVoltage":true,"otherConnected":true,"robustReports":true,"fastWrites":true,
-            "dataIsEncrypted":false,"isSynchronized": true,"keyIsDeviceKey":true,"keyIsUserKey":false });
+            expect(ad5.flags).toEqual({"hasData":false,"lowVoltage":false,"otherConnected":false,"robustReports":true,"fastWrites":true,
+            "dataIsEncrypted":false,"isSynchronized": false,"keyIsDeviceKey":false,"keyIsUserKey":false });
             expect(ad5.slug).toEqual("d--0000-0000-0000-0a49");
             expect(ad5.deviceID).toEqual(0xa49);
         }
