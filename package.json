@@ -1,6 +1,6 @@
 {
   "name": "@iotile/iotile-device",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "A typescript library for interfacing with IOTile BLE devices",
   "main": "dist/iotile-device.umd.js",
   "types": "dist/types/index.d.ts",
@@ -78,16 +78,17 @@
     "@iotile/iotile-common": "0.1.0"
   },
   "devDependencies": {
-    "@iotile/iotile-common": "0.1.0",
-    "msgpack-lite": "^0.1.26",
+    "@iotile/iotile-common": "0.2.0",
     "@types/jest": "^22.0.0",
+    "@types/lodash": "4.14.108",
     "@types/msgpack-lite": "^0.1.6",
     "@types/node": "^9.3.0",
     "cz-conventional-changelog": "^2.1.0",
     "gh-pages": "^1.0.0",
     "jest": "^23.6.0",
-    "lodash": "^4.17.10",
+    "lodash": "4.17.5",
     "lodash.camelcase": "^4.3.0",
+    "msgpack-lite": "^0.1.26",
     "prettier": "^1.10.2",
     "rollup": "^0.54.1",
     "rollup-plugin-commonjs": "^8.0.2",

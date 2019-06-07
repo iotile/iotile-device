@@ -77,6 +77,28 @@ export class StreamingError extends BaseError {
 
 /**
  * @ngdoc object
+ * @name Errors.type:WifiConfigError
+ * @description
+ * Error configuring wifi, usually while setting static IP.
+ */
+export class WifiConfigError extends BaseError {
+    public staticIp: string | null;
+    public dns: string | null;
+    public netmask: string | null;
+    public gateway: string | null;
+
+    constructor(message: string, staticIp=null, dns=null, netmask=null, gateway=null) {
+        super('WifiConfigError', message);
+
+        this.staticIp = staticIp;
+        this.dns = dns;
+        this.netmask = netmask;
+        this.gateway = gateway;
+    }
+}
+
+/**
+ * @ngdoc object
  * @name Errors.type:ReportParsingStoppedError
  * @description
  * Report parsing has been stopped due to a previous unrecoverable error.

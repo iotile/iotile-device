@@ -25,7 +25,8 @@ export default {
     typescript(),
     // Allow bundling cjs modules (unlike webpack, rollup doesn't understand cjs)
     commonjs({ namedExports: {
-      'crypto-js': ['lib', 'SHA256', 'enc']
+      'crypto-js': ['lib', 'SHA256', 'enc'],
+      'lodash': ['get']
     }}),
     // Allow node_modules resolution, so you can use 'external' to control
     // which external modules to include in the bundle
