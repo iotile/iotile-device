@@ -676,7 +676,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
    *     construct the payload for this RPC.
    * @returns {number[]} The decoded list of numbers that were returned from the RPC.
    */
-  public async typedRPC(address: number, rpcID: number, callFormat: string, respFormat: string, args: (string | number)[], timeout?: number) {
+  public async typedRPC(address: number, rpcID: number, callFormat: string, respFormat: string, args: (string | number | ArrayBuffer)[], timeout?: number) {
     let callPayload: ArrayBuffer = packArrayBuffer(callFormat, ...args);
 
     let respBuffer = await this.rpc(address, rpcID, callPayload, timeout);
@@ -723,7 +723,7 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
    *     construct the payload for this RPC.  The first item (the error code) is shifted off and not returned.
    * @returns {number[]} The decoded list of numbers that were returned from the RPC (excluding the error code).
    */
-  public async errorHandlingRPC(address: number, rpcID: number, callFormat: string, respFormat: string, args: (number | string)[], timeout?: number) {
+  public async errorHandlingRPC(address: number, rpcID: number, callFormat: string, respFormat: string, args: (number | string | ArrayBuffer)[], timeout?: number) {
     //The response must start with a 32 bit integer
     if (respFormat.length === 0 || respFormat[0] != 'L') {
       throw new ArgumentError('Invalid response format for errorHandlingRPC that did not start with an L code for the error.');

@@ -7,6 +7,7 @@ import {AdapterEvent} from "../common/iotile-types";
 import {ReportParsingError} from "../common/error-space";
 import { catAdapter, catIOTileDevice } from "../config";
 import { ReportParserEvent } from "./iotile-report-parser";
+import { NetworkConfig } from "./iotile-network";
 
 export interface BLEConnectionInfo {
   intervalMS: number;
@@ -240,6 +241,8 @@ export class IOTileDevice extends LoggingBase {
   public connectionID: any;
 
   public adapter: AbstractIOTileAdapter;
+
+  public networkConfig: NetworkConfig;
   private downloadLock: any;
 
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
@@ -248,6 +251,8 @@ export class IOTileDevice extends LoggingBase {
     this.advertisement = advData;
     this.deviceID = advData.deviceID;
     this.adapter = adapter;
+
+    this.networkConfig = new NetworkConfig(adapter, 10);
 
     this.slug = deviceIDToSlug(this.deviceID);
     this.connectionID = advData.connectionID;
