@@ -1,9 +1,6 @@
 import { ArgumentError, stringToBuffer } from '@iotile/iotile-common';
 import { AbstractIOTileAdapter } from './iotile-base-types';
 import { RPCError } from '../common/error-space';
-import { readFileSync } from 'fs';
-// const fs = require('fs');
-// const readFileSync = fs.readFileSync;
 
 export enum BridgeEnum {    
   Connection = 1,
@@ -68,7 +65,7 @@ export class MQTTBridgeConfig {
           done = 1;
         }
         try {
-          await this.adapter.errorHandlingRPC(this.address, 0xAA02, 'bV', 'L', [done, stringToBuffer(name.slice(offset,end))]);
+          await this.adapter.errorHandlingRPC(this.address, 0xAA02, 'BV', 'L', [done, stringToBuffer(name.slice(offset,end))]);
         } catch (err) {
           if (err instanceof RPCError && err.errorCode === 2) {
             throw new ArgumentError('Error, that connection name is already taken, please try again.');
@@ -98,7 +95,7 @@ export class MQTTBridgeConfig {
 
       // Commit the new bridge
       try {
-        await this.adapter.errorHandlingRPC(this.address, 0xAA04, '', 'L', []);
+        await this.adapter.errorHandlingRPC(this.address, 0xAA04, '', 'B', []);
       } catch (err) {
         if (err instanceof RPCError && err.errorCode === 2) {
           throw new ArgumentError('Error committing bridge, you set TLS but the certificates were incomplete.');
@@ -122,11 +119,12 @@ export class MQTTBridgeConfig {
       }
 
       try {
-        await this.adapter.errorHandlingRPC(this.address, 0xAA05, 'bV', 'L', [done, stringToBuffer(bridgeName.slice(offset, end))]);
+        await this.adapter.errorHandlingRPC(this.address, 0xAA05, 'BV', 'B', [done, stringToBuffer(bridgeName.slice(offset, end))]);
       } catch (err) {
         if (err instanceof RPCError && err.errorCode === 2) {
           throw new ArgumentError('Bridge not removed because the name doesn\'t exist, please double check spelling.');
-        } else {
+        } else if (err.errorCode !== 1) { // errorCode 1 is actually success
+          console.log("ERR:", err);
           throw err
         }
       }
@@ -138,8 +136,8 @@ export class MQTTBridgeConfig {
    * Your CA certificate. Needs to be pem encoded. Will overwrite an existing CA certificate.
    * @param {string} source Path to file 
    */
-  public async sendCertfile(source: string) {
-    await this._sendTLSFile(source, TLSEnum.CertFile);
+  public async sendCertfile(source: string, readFileSync: any) {
+    await this._sendTLSFile(source, TLSEnum.CertFile, readFileSync);
   }
 
   /**
@@ -149,8 +147,8 @@ export class MQTTBridgeConfig {
 
    * @param {string} source Path to file 
    */
-  public async sendCAFile(source: string) {
-    await this._sendTLSFile(source, TLSEnum.CAFile);
+  public async sendCAFile(source: string, readFileSync: any) {
+    await this._sendTLSFile(source, TLSEnum.CAFile, readFileSync);
   }
 
   /**
@@ -164,11 +162,12 @@ export class MQTTBridgeConfig {
   public async listFullMosquittoConfig(): Promise<string> {
     let offset = 0;
     let full = '';
-    let res: string = await this.adapter.typedRPC(this.address, 0xAA00, 'L', 'V', [offset]);
+    let  [res]: [string] = await this.adapter.typedRPC(this.address, 0xAA00, 'L', 'V', [offset]);
+    
     full += res;
     while (res.length === 20) {
       offset += 20;
-      res = await this.adapter.typedRPC(this.address, 0xAA00, 'L', 'V', [offset]);
+      [res] = await this.adapter.typedRPC(this.address, 0xAA00, 'L', 'V', [offset]);
       full += res;
     }
 
@@ -179,8 +178,8 @@ export class MQTTBridgeConfig {
    * Your private keyfile. Should be pem encoded. Will overwrite an existing keyfile.
    * @param {string} source Path to file 
    */
-  public async sendKeyFile(source: string) {
-    await this._sendTLSFile(source, TLSEnum.KeyFile);
+  public async sendKeyFile(source: string, readFileSync: any) {
+    await this._sendTLSFile(source, TLSEnum.KeyFile, readFileSync);
   }
 
   private async _clearPendingBridge() {
@@ -198,14 +197,14 @@ export class MQTTBridgeConfig {
       if (end === itemData.length) {
         done = 1;
       }
-      await this.adapter.typedRPC(this.address, 0xAA03, 'bbV', '', [itemId, done, stringToBuffer(itemData.slice(offset, end))]);
+      await this.adapter.typedRPC(this.address, 0xAA03, 'BBV', '', [itemId, done, stringToBuffer(itemData.slice(offset, end))]);
       offset += 18;
     }
   }
 
-  private async _sendTLSFile(source: string, tlsFileType: TLSEnum) {
+  private async _sendTLSFile(source: string, tlsFileType: TLSEnum, readFileSync: any) {
     await this.adapter.typedRPC(this.address, 0xAA10, '', '', []); // clear
-    await this.adapter.typedRPC(this.address, 0xAA11, 'b', '', [tlsFileType]); // set which file
+    await this.adapter.typedRPC(this.address, 0xAA11, 'B', '', [tlsFileType]); // set which file
 
     const src = readFileSync(source, {"encoding": "utf8"});
     

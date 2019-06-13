@@ -725,8 +725,8 @@ export class IOTileAdapter extends AbstractIOTileAdapter {
    */
   public async errorHandlingRPC(address: number, rpcID: number, callFormat: string, respFormat: string, args: (number | string | ArrayBuffer)[], timeout?: number) {
     //The response must start with a 32 bit integer
-    if (respFormat.length === 0 || respFormat[0] != 'L') {
-      throw new ArgumentError('Invalid response format for errorHandlingRPC that did not start with an L code for the error.');
+    if (respFormat.length === 0 || (respFormat[0] !== 'B' && respFormat[0] !== 'L' && respFormat[0] !== 'H')) {
+      throw new ArgumentError('Invalid response format for errorHandlingRPC that did not start with an B, L, or H code for the error.');
     }
 
     let resp = await this.typedRPC(address, rpcID, callFormat, respFormat, args, timeout);

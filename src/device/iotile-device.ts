@@ -1,3 +1,4 @@
+import { MQTTBridgeConfig } from './iotile-mqtt';
 import {IOTileAdvertisement} from "./iotile-advert-serv";
 import {AbstractIOTileAdapter} from "./iotile-base-types";
 import {deviceIDToSlug, packArrayBuffer, unpackArrayBuffer, mapStreamName, ArgumentError, ProgressNotifier, Mutex, delay, LoggingBase} from "@iotile/iotile-common";
@@ -243,6 +244,7 @@ export class IOTileDevice extends LoggingBase {
   public adapter: AbstractIOTileAdapter;
 
   public networkConfig: NetworkConfig;
+  public mqttBridgeConfig: MQTTBridgeConfig;
   private downloadLock: any;
 
   constructor (adapter: AbstractIOTileAdapter, advData: IOTileAdvertisement) {
@@ -253,6 +255,7 @@ export class IOTileDevice extends LoggingBase {
     this.adapter = adapter;
 
     this.networkConfig = new NetworkConfig(adapter, 10);
+    this.mqttBridgeConfig = new MQTTBridgeConfig(adapter, 11);
 
     this.slug = deviceIDToSlug(this.deviceID);
     this.connectionID = advData.connectionID;
