@@ -1,4 +1,4 @@
-import { WifiConfigError } from './../common/error-space';
+import { WifiConfigError, EthernetConfigError } from './../common/error-space';
 import { ArgumentError, unpackArrayBuffer, packArrayBuffer, padArrayBuffer, stringToBuffer, toUint32 } from '@iotile/iotile-common';
 import { AbstractIOTileAdapter } from './iotile-base-types';
 import { get } from 'lodash';
@@ -13,6 +13,11 @@ export enum SettingCodes {
   SharedConnection = 3,
   InterfaceIndex = 4,
   ModemAPN = 5,
+}
+
+export enum NetworkInterfaces {
+  Ethernet = 0,
+  Wifi = 1
 }
 
 /**
@@ -372,7 +377,7 @@ export class NetworkConfig {
    * and their index number will always point to the same device until
    * this function is called again.
    *
-   * @returns number: The count of network devices.
+   * @returns {Promise<number>}: The count of network devices.
    * 
    * @param address 
    */
@@ -386,7 +391,7 @@ export class NetworkConfig {
    * This information includes the type of interface, whether it is currently
    * connected to a media / ethernet cable and what its IP information is.
    * 
-   * @returns {string} InterfaceInfo show-as string: An InterfaceInfo structure with the interface info.
+   * @returns {Promise<string>} InterfaceInfo show-as string: An InterfaceInfo structure with the interface info.
    * 
    * @param {number} index The index of the interface we wish to query.
    *   This must be < the count returned by list_interfaces.
@@ -399,7 +404,7 @@ export class NetworkConfig {
   /**
    * List all visible networks for a given interface.
    * 
-   * @returns {string[]} A list of visible WirelessNetwork objects
+   * @returns {Promise<string[]>} A list of visible WirelessNetwork objects
    * 
    * @param {number} index A network interface index.
    */
@@ -417,7 +422,7 @@ export class NetworkConfig {
   /**
    * Get the active network for a given interface.
    *    
-   * @returns {string} WirelessNetwork show-as string: The active wireless network.
+   * @returns {Promise<string>} WirelessNetwork show-as string: The active wireless network.
    *
    * @param {number} index A network interface index.
    */
@@ -467,15 +472,32 @@ export class NetworkConfig {
   }
 
   /**
-   * 
-   * @param iface 
-   * @param networkName 
-   * @param password 
-   * @param static_ip 
-   * @param dns 
-   * @param netmask 
-   * @param gateway 
-   * @param shared 
+   * Setup a basic wifi connection.
+
+        You need to enter the network ssid and password (if there is one).  If
+        you want a default dhcp based connection those are the only settings
+        you need.  Otherwise, you can specify a static IP address by passing
+        static_ip, dns, netmask and gateway.
+
+        If you want to create a wifi hotspot, you can pass shared=True and the
+        network name and password are used to create a wifi hotspot.  If you
+        combine shared=True with a static IP then you can set the IP of the
+        node and the netmask it will use to allocate IPs for other computers
+        connecting to its hotspot.  The dns and gateway options are ignored if
+        shared=True.
+
+   * @param {number} iface The index of the interface that we wish to configure as
+                a wifi network.  This should be a wifi type interface.
+   * @param {string} networkName The ssid of the network that you wish to join
+   * @param {string} password An optional password for the network
+   * @param {string} staticIp An optional static ipv4 address in X.Y.Z.W format
+   * @param {string} dns An optional dns server in X.Y.Z.W format, only used if
+                combined with static_ip.
+   * @param {string} netmask An optional netmask in X.Y.Z.W format, only used if
+                combined with static_ip.
+   * @param {string} gateway An optional default gateway for routing traffic.  Only
+                used if combined with static_ip.
+   * @param {boolean} shared Whether to setup the interface as a hotspot or not.
    */
   public async configWifi(iface: number, networkName: string, password: string="", staticIp:(string | null)=null,
     dns:(string | null)=null, netmask:(string | null)=null, gateway:(string | null)=null, shared:boolean=false) {
@@ -517,6 +539,46 @@ export class NetworkConfig {
       await this.pushConfigSetting(SettingCodes.IPConfig, ipv4Config);
       await this.pushConfigSetting(SettingCodes.SharedConnection, shared);
       await this.finishConnection(iface);
+  }
+
+  /**
+   * Set up the ethernet configuration of a device. Currently only designed for static ip allocation.
+   * 
+   * @param {number} iface The index of the interface that we wish to configure as
+                an ethernet network.  This should be a wifi type interface.
+   * @param {string} staticIp An optional static ipv4 address in X.Y.Z.W format
+   * @param {string} dns An optional dns server in X.Y.Z.W format, only used if
+                combined with static_ip.
+   * @param {string} netmask An optional netmask in X.Y.Z.W format, only used if
+                combined with static_ip.
+   * @param {string} gateway An optional default gateway for routing traffic.  Only
+                used if combined with static_ip.
+   */
+  public async configEthernet(iface: number, staticIp:(string | null)=null,
+  dns:(string | null)=null, netmask:(string | null)=null, gateway:(string | null)=null) {
+    await this.beginConnection();
+
+    await this.pushConfigSetting(SettingCodes.InterfaceIndex, iface);
+
+    const ipv4Config = new NetworkInterfaceInfo(iface, true, 1, true);
+    ipv4Config.autoconnect = true;
+
+    if (staticIp) {
+      ipv4Config.static = true;
+      if (netmask === null || gateway === null) {
+        throw new EthernetConfigError(`You specified a static IP address but did not also specify a 
+        netmask and gateway.`, staticIp as any, dns as any, netmask as any, gateway as any)
+      }
+      ipv4Config.setIp4Info(staticIp, gateway, netmask);
+      if (dns) {
+        ipv4Config.addDNS(dns);
+      }
+    }
+    ipv4Config.sharing = false;
+
+    await this.pushConfigSetting(SettingCodes.IPConfig, ipv4Config);
+    await this.pushConfigSetting(SettingCodes.SharedConnection, false);
+    await this.finishConnection(iface);
   }
 
   /**
