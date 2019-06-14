@@ -164,11 +164,13 @@ export class MQTTBridgeConfig {
     let full = '';
     let  [res]: [string] = await this.adapter.typedRPC(this.address, 0xAA00, 'L', 'V', [offset]);
     
-    full += res;
-    while (res.length === 20) {
-      offset += 20;
-      [res] = await this.adapter.typedRPC(this.address, 0xAA00, 'L', 'V', [offset]);
+    if (res) {
       full += res;
+      while (res && res.length === 20) {
+        offset += 20;
+        [res] = await this.adapter.typedRPC(this.address, 0xAA00, 'L', 'V', [offset]);
+        full += res;
+      }
     }
 
     return full;
