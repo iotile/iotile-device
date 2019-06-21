@@ -134,10 +134,10 @@ export class MQTTBridgeConfig {
 
   /**
    * Your CA certificate. Needs to be pem encoded. Will overwrite an existing CA certificate.
-   * @param {string} source Path to file 
+   * @param {string} source The source data file sent as a string 
    */
-  public async sendCertfile(source: string, readFileSync: any) {
-    await this._sendTLSFile(source, TLSEnum.CertFile, readFileSync);
+  public async sendCertfile(source: string) {
+    await this._sendTLSFile(source, TLSEnum.CertFile);
   }
 
   /**
@@ -145,10 +145,10 @@ export class MQTTBridgeConfig {
 
         It might show up with a name like rootCA.pem
 
-   * @param {string} source Path to file 
+   * @param {string} source The source data file sent as a string 
    */
-  public async sendCAFile(source: string, readFileSync: any) {
-    await this._sendTLSFile(source, TLSEnum.CAFile, readFileSync);
+  public async sendCAFile(source: string) {
+    await this._sendTLSFile(source, TLSEnum.CAFile);
   }
 
   /**
@@ -178,10 +178,10 @@ export class MQTTBridgeConfig {
 
   /**
    * Your private keyfile. Should be pem encoded. Will overwrite an existing keyfile.
-   * @param {string} source Path to file 
+   * @param {string} source The source data file sent as a string 
    */
-  public async sendKeyFile(source: string, readFileSync: any) {
-    await this._sendTLSFile(source, TLSEnum.KeyFile, readFileSync);
+  public async sendKeyFile(source: string) {
+    await this._sendTLSFile(source, TLSEnum.KeyFile);
   }
 
   private async _clearPendingBridge() {
@@ -204,20 +204,22 @@ export class MQTTBridgeConfig {
     }
   }
 
-  private async _sendTLSFile(source: string, tlsFileType: TLSEnum, readFileSync: any) {
+  /**
+   * 
+   * @param source The source data file sent as a string
+   */
+  private async _sendTLSFile(source: string, tlsFileType: TLSEnum) {
     await this.adapter.typedRPC(this.address, 0xAA10, '', '', []); // clear
     await this.adapter.typedRPC(this.address, 0xAA11, 'B', '', [tlsFileType]); // set which file
-
-    const src = readFileSync(source, {"encoding": "utf8"});
     
     let offset = 0;
     let done = 0;
     while (!done) {
-      const end = Math.min(offset + 20, src.length);
-      if (end === src.length) {
+      const end = Math.min(offset + 20, source.length);
+      if (end === source.length) {
         done = 1;
       }
-      await this.adapter.typedRPC(this.address, 0xAA13, 'V', '', [stringToBuffer(src.slice(offset, end))]);
+      await this.adapter.typedRPC(this.address, 0xAA13, 'V', '', [stringToBuffer(source.slice(offset, end))]);
       offset += 20;
     }
 
