@@ -75,10 +75,10 @@
   "peerDependencies": {
     "typescript-logging": "^0.6.3",
     "msgpack-lite": "^0.1.26",
-    "@iotile/iotile-common": "0.1.0"
+    "@iotile/iotile-common": "0.2.1"
   },
   "devDependencies": {
-    "@iotile/iotile-common": "0.2.0",
+    "@iotile/iotile-common": "0.2.1",
     "@types/jest": "^22.0.0",
     "@types/lodash": "4.14.108",
     "@types/msgpack-lite": "^0.1.6",
@@ -90,9 +90,9 @@
     "lodash.camelcase": "^4.3.0",
     "msgpack-lite": "^0.1.26",
     "prettier": "^1.10.2",
-    "rollup": "^0.54.1",
+    "rollup": "^1.15.1",
     "rollup-plugin-commonjs": "^8.0.2",
-    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-node-resolve": "^5.0.1",
     "rollup-plugin-sourcemaps": "^0.4.2",
     "rollup-plugin-typescript2": "^0.10.0",
     "standard-version": "^4.0.0",
