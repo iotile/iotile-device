@@ -1,6 +1,6 @@
 {
   "name": "@iotile/iotile-device",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A typescript library for interfacing with IOTile BLE devices",
   "main": "dist/iotile-device.umd.js",
   "types": "dist/types/index.d.ts",
