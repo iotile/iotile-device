@@ -26,8 +26,12 @@ export interface IOTileAdvertisement {
   deviceID: number,
   rssi: number,
   flags: IOTileAdvertisementFlagsV1 | IOTileAdvertisementFlagsV2,
-  connectionID: any,
-  slug: string
+  connectionID: any,  
+  slug: string,
+  broadcastStream?: number,
+  broadcastValue?: number,
+  timestamp?: number
+
 }
 
 export class IOTileAdvertisementService {
@@ -101,17 +105,22 @@ export class IOTileAdvertisementService {
      * We skip the 4 bytes betweein the uuid and the flags since this contains information
      * relevant for decrypting broadcast information but not for what we need here.
      */
-    let [uuid, rawFlags] = unpackArrayBuffer("L3xB", serviceData.slice(0, 8))
+    let [uuid, rawFlags, timestamp, battery, broadcastStreamPacked, broadcastValue] = unpackArrayBuffer("L3xBLBxHL", serviceData.slice(0, 20))
     let slug = deviceIDToSlug(uuid);
     let flags = parseFlagsV2(rawFlags);
 
+    const broadcastStream = broadcastStreamPacked & ((1 << 15) - 1)
+    
     return {
-      batteryVoltage: 0,
+      batteryVoltage: battery,
       deviceID: uuid,
       slug: slug,
       connectionID: connectionID,
       rssi: rssi,
-      flags: flags
+      flags: flags,
+      broadcastStream,
+      broadcastValue,
+      timestamp
     }
   }
 }

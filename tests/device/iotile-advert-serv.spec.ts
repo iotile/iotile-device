@@ -248,25 +248,20 @@ describe('module: iotile.device, IOTileAdvertisingService (ios support)', functi
     });
 
     it('should correctly parse ios advertising packets (v2)', function() {
-        IOTileAdvert = new IOTileAdvertisementService();
+        let rawAdvert = base64ToArrayBuffer("AgEGGxbd/Y8IAAAAAAAAYoIRAHAUKJApAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 
-        let advertising = {
-            kCBAdvDataIsConnectable: 1,
-            kCBAdvDataServiceData: {"FDDD": base64ToArrayBuffer("SQoAAAAAAADVKPqjahYTECUAAAAAAAAA")},
-            kCBAdvDataServiceUUIDs: 
-            [
-                "FDDD"
-            ]
-        };
-
-        let processed = IOTileAdvert.processAdvertisement('test', -50, advertising);
+        let processed = IOTileAdvert.processAdvertisement('test', -50, rawAdvert);
 
         expect(processed).not.toBeNull();
 
         if (processed != null) {
             expect(processed.rssi).toBe(-50);
             expect(processed.connectionID).toBe('test');
-            expect(processed.deviceID).toBe(2633);
+            expect(processed.deviceID).toBe(2191);
+            expect(processed.broadcastStream).toBe(4136);
+            expect(processed.broadcastValue).toBe(809);
+            expect(processed.batteryVoltage).toBe(112);
+            expect(processed.timestamp).toBe(1147490);
         }
     });
 });
