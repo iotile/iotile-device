@@ -12,6 +12,7 @@ declare global {
 		ble: CordovaBLECentral;
 		device: any;
 		fabric: any;
+		//@ts-ignore
 		cordova: any;
 		Raven: Raven;
 		resolveLocalFileSystemURL: (path: string, successCallback: (entry: any) => void, errorCallback: (any: any) => void) => void;
